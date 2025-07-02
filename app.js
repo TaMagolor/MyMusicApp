@@ -11,7 +11,8 @@ const randomButton = document.getElementById('start-random-button');
 const exportButton = document.getElementById('export-settings-button');
 const importInput = document.getElementById('import-settings-input');
 
-// --- Properties Panel Elements ---
+// --- Unified Properties Panel Elements ---
+// --- 統合されたプロパティパネルの要素 ---
 const propertiesPanel = document.getElementById('properties-panel');
 const propItemName = document.getElementById('prop-item-name');
 const propDisplayName = document.getElementById('prop-display-name');
@@ -60,14 +61,29 @@ window.addEventListener('load', async () => {
 async function loadDataFromDB() {
 	try {
 		showLoading('ライブラリを読み込み中...');
-		const songs = await getAllSongs();
+		const songData = await getAllSongs();
 		const props = await getProperties('songProperties');
 		const recent = await getProperties('recentlyPlayed');
 
-		if (songs && songs.length > 0) {
-			libraryFiles = songs;
+		if (songData && songData.length > 0) {
+			// Fileオブジェクトに失われたパス情報を復元する
+			const restoredFiles = songData.map(item => {
+				try {
+					Object.defineProperty(item.file, 'webkitRelativePath', {
+						value: item.path,
+						writable: true,
+						configurable: true
+					});
+				} catch (e) {
+					item.file.webkitRelativePath = item.path;
+				}
+				return item.file;
+			});
+
+			libraryFiles = restoredFiles;
 			songProperties = props || {};
 			recentlyPlayed = recent || [];
+			
 			fileTree = buildFileTree(libraryFiles);
 			renderTreeView();
 			console.log(`${libraryFiles.length} songs loaded from DB.`);
@@ -81,8 +97,10 @@ async function loadDataFromDB() {
 	}
 }
 
+
 // =================================================================
 // Event Listeners
+// イベントリスナー
 // =================================================================
 
 // フォルダ選択時、DBに曲を保存する
@@ -98,7 +116,6 @@ fileInput.addEventListener('change', async (event) => {
 				updateLoadingMessage(`インポート中: ${i + 1} / ${files.length} 曲`);
 			}
 		}
-		// インポート完了後、DBから再読み込みして画面を更新
 		await loadDataFromDB();
 	} catch (error) {
 		console.error('Error during import:', error);
@@ -164,14 +181,54 @@ importInput.addEventListener('change', (event) => {
 	event.target.value = '';
 });
 
-// (他のイベントリスナーは変更なし)
-treeViewContainer.addEventListener('click', (event) => { /* ... */ });
-randomButton.addEventListener('click', () => { /* ... */ });
+// ライブラリのクリックイベント
+treeViewContainer.addEventListener('click', (event) => {
+	const target = event.target;
+	if (target.classList.contains('toggle')) {
+		target.parentElement.classList.toggle('open');
+		return;
+	}
+	const liElement = target.closest('li');
+	if (liElement) {
+		if (liElement.matches('.folder-item')) {
+			handleFolderSelect(liElement);
+		} else if (liElement.matches('.file-item')) {
+			handleSongSelect(liElement);
+		}
+	}
+});
+
+// 「ランダム再生 / 再生予約」ボタン
+randomButton.addEventListener('click', () => {
+	const targetPath = currentlyEditingPath || activeRandomFolderPath;
+	if (!targetPath) {
+		console.warn('ライブラリからフォルダまたは曲を選択してください。');
+		return;
+	}
+	if (isEditingFolder) {
+		activeRandomFolderPath = targetPath;
+		nextSongToPlay = null;
+		if (audioPlayer.paused) {
+			playNextSong();
+		}
+	} else {
+		const file = findFileByPath(targetPath);
+		if (file) {
+			nextSongToPlay = file;
+			if (audioPlayer.paused) {
+				playNextSong();
+			}
+		}
+	}
+});
+
+// 曲の再生終了時
 audioPlayer.addEventListener('ended', () => { setTimeout(playNextSong, 800); });
 
 
 // =================================================================
 // Core Functions
+// 主要な関数
 // =================================================================
 
 /** 曲を再生し、再生履歴をDBに保存する */
@@ -203,27 +260,7 @@ async function playSong(file) {
 	currentGameTitle.textContent = gameName;
 }
 
-// (他のCore/Helper関数は、データの取得元がメモリ上の変数になったため、変更は軽微または不要)
-// ...
-
-// =================================================================
-// UI Feedback Functions
-// =================================================================
-function showLoading(message) {
-	loadingOverlay.querySelector('div').textContent = message;
-	loadingOverlay.style.display = 'flex';
-}
-function updateLoadingMessage(message) {
-	loadingOverlay.querySelector('div').textContent = message;
-}
-function hideLoading() {
-	loadingOverlay.style.display = 'none';
-}
-
-// =================================================================
-// (ここより下は、前回のコードから変更のない関数群です)
-// =================================================================
-
+/** ツリービューでフォルダが選択された時の処理 */
 function handleFolderSelect(folderElement) {
     const folderPath = folderElement.dataset.folderPath;
     currentlyEditingPath = folderPath;
@@ -245,6 +282,7 @@ function handleFolderSelect(folderElement) {
     propertiesPanel.style.display = 'block';
 }
 
+/** ツリービューで曲が選択された時の処理 */
 function handleSongSelect(songElement) {
     const filePath = songElement.dataset.filePath;
     currentlyEditingPath = filePath;
@@ -264,6 +302,9 @@ function handleSongSelect(songElement) {
     propertiesPanel.style.display = 'block';
 }
 
+/**
+ * 次に再生すべき曲を判断し、再生を実行する司令塔となる関数
+ */
 function playNextSong() {
     if (nextSongToPlay) {
         playSong(nextSongToPlay);
@@ -272,8 +313,14 @@ function playNextSong() {
     }
 
     if (!activeRandomFolderPath) {
-        console.log("ランダム再生の対象フォルダが設定されていません。");
-        return;
+        // activeRandomFolderPathが未設定の場合、ルートフォルダを対象とする
+        if (libraryFiles.length > 0) {
+            const rootFolderName = libraryFiles[0].webkitRelativePath.split('/')[0];
+            activeRandomFolderPath = rootFolderName;
+        } else {
+            console.log("ライブラリに曲がありません。");
+            return;
+        }
     }
 
     let playlist = getPlaylist(activeRandomFolderPath);
@@ -317,6 +364,28 @@ function playNextSong() {
     playSong(songToPlay);
 }
 
+
+// =================================================================
+// UI Feedback Functions
+// =================================================================
+function showLoading(message) {
+	loadingOverlay.querySelector('div').textContent = message;
+	loadingOverlay.style.display = 'flex';
+}
+function updateLoadingMessage(message) {
+	loadingOverlay.querySelector('div').textContent = message;
+}
+function hideLoading() {
+	loadingOverlay.style.display = 'none';
+}
+
+
+// =================================================================
+// Helper Functions
+// ヘルパー関数
+// =================================================================
+
+/** ツリービュー全体をDOMに描画し、トップレベルフォルダを開く */
 function renderTreeView() {
     treeViewContainer.innerHTML = ''; 
     const treeViewHTML = createTreeViewHTML(fileTree);
@@ -328,6 +397,7 @@ function renderTreeView() {
     });
 }
 
+/** ツリービューのHTMLリストを再帰的に構築し、トグルや表示名を設定する */
 function createTreeViewHTML(node, currentPath = '') {
     const ul = document.createElement('ul');
     const items = Object.keys(node).map(key => {
@@ -373,6 +443,7 @@ function createTreeViewHTML(node, currentPath = '') {
     return ul;
 }
 
+/** 指定されたフォルダパスに基づいて現在のプレイリストを取得する */
 function getPlaylist(folderPath) {
     const targetPath = folderPath || selectedFolderPath;
     if (targetPath) {
@@ -387,6 +458,7 @@ function getPlaylist(folderPath) {
     }
 }
 
+/** 指定されたノード以下の全てのFileオブジェクトを再帰的に収集する */
 function getFilesFromNode(node) {
     let files = [];
     for (const key in node) {
@@ -400,6 +472,7 @@ function getFilesFromNode(node) {
     return files;
 }
 
+/** ファイルのフルパスからFileオブジェクトを見つける */
 function findFileByPath(filePath) {
     for (const file of libraryFiles) {
         if (file.webkitRelativePath === filePath) {
@@ -409,9 +482,11 @@ function findFileByPath(filePath) {
     return null;
 }
 
+/** フラットなFileListから階層的なfileTreeオブジェクトを構築する */
 function buildFileTree(files) {
     const tree = {};
     for (const file of files) {
+        if (!file.webkitRelativePath) continue; // パス情報がないファイルはスキップ
         const pathParts = file.webkitRelativePath.split('/');
         let currentLevel = tree;
         for (let i = 0; i < pathParts.length; i++) {

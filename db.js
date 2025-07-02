@@ -30,10 +30,8 @@ function openDB() {
 			resolve(db);
 		};
 
-		// データベースのバージョンが古い場合や、まだ存在しない場合に実行
 		request.onupgradeneeded = (event) => {
 			const db = event.target.result;
-			// オブジェクトストア（テーブルのようなもの）を作成
 			if (!db.objectStoreNames.contains(SONGS_STORE_NAME)) {
 				db.createObjectStore(SONGS_STORE_NAME, { keyPath: 'path' });
 			}
@@ -45,7 +43,7 @@ function openDB() {
 }
 
 /**
- * 曲のデータをデータベースに保存する
+ * 曲のデータとパスをデータベースに保存する
  * @param {File} file - 保存するファイルオブジェクト
  * @returns {Promise<void>}
  */
@@ -54,7 +52,12 @@ function saveSong(file) {
 		const db = await openDB();
 		const transaction = db.transaction(SONGS_STORE_NAME, 'readwrite');
 		const store = transaction.objectStore(SONGS_STORE_NAME);
-		const request = store.put({ path: file.webkitRelativePath, file: file });
+		// ▼▼▼ 変更点：ファイルだけでなく、パス情報も一緒に保存する ▼▼▼
+		const dataToStore = {
+			path: file.webkitRelativePath,
+			file: file
+		};
+		const request = store.put(dataToStore);
 
 		request.onsuccess = () => resolve();
 		request.onerror = (event) => reject('Error saving song: ' + event.target.error);
@@ -62,8 +65,8 @@ function saveSong(file) {
 }
 
 /**
- * 全ての曲データをデータベースから取得する
- * @returns {Promise<File[]>} Fileオブジェクトの配列を返すPromise
+ * 全ての曲データ（パスとファイル）をデータベースから取得する
+ * @returns {Promise<Array<{path: string, file: File}>>} パスとFileオブジェクトのペアの配列を返すPromise
  */
 function getAllSongs() {
 	return new Promise(async (resolve, reject) => {
@@ -72,10 +75,9 @@ function getAllSongs() {
 		const store = transaction.objectStore(SONGS_STORE_NAME);
 		const request = store.getAll();
 
+		// ▼▼▼ 変更点：Fileオブジェクトだけでなく、保存したオブジェクト全体を返す ▼▼▼
 		request.onsuccess = (event) => {
-			// 保存されたオブジェクトからFileオブジェクトだけを取り出す
-			const files = event.target.result.map(item => item.file);
-			resolve(files);
+			resolve(event.target.result); // [{path: '...', file: File}, ...]
 		};
 		request.onerror = (event) => reject('Error fetching songs: ' + event.target.error);
 	});
