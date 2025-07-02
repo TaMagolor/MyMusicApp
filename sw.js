@@ -1,5 +1,5 @@
 // ▼▼▼ バージョン番号を管理する新しい定数 ▼▼▼
-const CACHE_NAME = 'music-app-cache-v3'; // 更新のたびにここのバージョンを変える
+const CACHE_NAME = 'music-app-cache-v4'; // 更新のたびにここのバージョンを変える
 const urlsToCache = [
 	'/',
 	'/index.html',
