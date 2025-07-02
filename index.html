@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyMusicApp</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <h1>MyMusicApp</h1>
+
+    <div id="main-container">
+
+        <div id="left-panel">
+            <h2>ライブラリ</h2>
+            
+            <div id="library-controls">
+                <label for="fileInput">フォルダを選択してライブラリを構築:</label>
+                <input type="file" id="fileInput" webkitdirectory>
+
+                <hr>
+
+                <button id="export-settings-button">設定をエクスポート</button>
+                <label for="import-settings-input" class="button-like-label">設定をインポート</label>
+                <input type="file" id="import-settings-input" accept=".json" style="display: none;">
+            </div>
+
+            <div id="tree-view-container">
+                </div>
+
+            <hr>
+
+            <div id="properties-panel" style="display: none;">
+                <h4>詳細設定</h4>
+                <p>対象: <span id="prop-item-name"></span></p>
+
+                <div class="prop-details">
+                    <label>表示名(Name): <input type="text" id="prop-display-name"></label>
+                </div>
+                <div class="prop-details">
+                    <label>並び替え順: <input type="number" id="prop-sort-order" step="0.01" value="0"></label>
+                </div>
+
+                <div id="song-specific-settings">
+                    <div class="prop-details">
+                        <label>抽選倍率: <input type="number" id="prop-lottery-multiplier" min="0.1" step="0.1" value="1.0"></label>
+                    </div>
+                </div>
+
+                <div id="folder-specific-settings">
+                    <div class="prop-details">
+                        <label><input type="checkbox" id="prop-is-game"> Gameフォルダとしてマーク</label>
+                    </div>
+                </div>
+                <button id="save-properties-button">設定を保存</button>
+            </div>
+        </div>
+
+        <div id="right-panel">
+            <h2>プレーヤー</h2>
+            
+            <div id="info-display">
+                <p>モード: <span id="current-mode">待機中</span></p>
+                <p>対象: <span id="random-target-folder">N/A</span></p>
+                <p>予約中: <span id="next-track-info">なし</span></p>
+            </div>
+
+            <audio id="audioPlayer" controls></audio>
+            <p>現在再生中: <span id="current-track-title"></span></p>
+            <p>ゲーム: <span id="current-game-title">N/A</span></p>
+
+            <hr>
+
+            <div id="endurance-controls">
+                <label>
+                    <input type="checkbox" id="endurance-mode-toggle">
+                    <strong>耐久モード</strong>
+                </label>
+                
+                <div id="endurance-duration-selector" style="display: none;">
+                    <label for="duration-select">再生時間:</label>
+                    <select id="duration-select">
+                        <option value="300">5分</option>
+                        <option value="600">10分</option>
+                        <option value="900">15分</option>
+                        <option value="1800">30分</option>
+                        <option value="3600">60分</option>
+                    </select>
+                </div>
+            </div>
+            <hr>
+
+            <h3>ランダム再生</h3>
+            <p>上のライブラリからフォルダや曲を選択して、下のボタンを押してください。</p>
+            <button id="start-random-button">ランダム再生 / 再生予約</button>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,57 @@
+.selected-folder {
+    background-color: #e0f7ff; /* 明るい水色 */
+    font-weight: bold;
+    border-radius: 4px;
+}
+
+.button-like-label {
+    padding: 4px 8px;
+    border: 1px solid #ccc;
+    background-color: #f0f0f0;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.button-like-label:hover {
+    background-color: #e0e0e0;
+}
+
+/* フォルダツリーのスタイル調整 */
+#tree-view-container ul {
+    padding-left: 20px;
+    list-style-type: none;
+}
+
+#tree-view-container li {
+    padding: 3px 0;
+}
+
+/* 開閉トグル（三角形）のスタイル */
+.toggle {
+    display: inline-block;
+    width: 0;
+    height: 0;
+    margin-right: 8px;
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+    border-left: 8px solid #555; /* 三角形の色 */
+    transition: transform 0.2s ease; /* 回転アニメーション */
+    cursor: pointer;
+    vertical-align: middle;
+}
+
+/* デフォルトでサブリスト（入れ子のul）を非表示にする */
+#tree-view-container li > ul {
+    display: none;
+}
+
+/* "open"クラスが付いたフォルダのサブリストを表示する */
+#tree-view-container li.open > ul {
+    display: block;
+}
+
+/* "open"クラスが付いたフォルダのトグルを90度回転させる */
+#tree-view-container li.open > .toggle {
+    transform: rotate(90deg);
+}
