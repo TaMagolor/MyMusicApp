@@ -372,7 +372,7 @@ async function playSong(file) {
 			artist: gameName,
 			album: '多機能ミュージックリスト',
 			artwork: [
-				{ src: 'https://placehold.co/512x512/7e57c2/ffffff?text=🎵', sizes: '512x512', type: 'image/png' },
+				{ src: 'https://placehold.co/512x512/7e57c2/ffffff?text=%F0%9F%8E%B5', sizes: '512x512', type: 'image/png' },
 			]
 		});
 
