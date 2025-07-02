@@ -367,12 +367,15 @@ async function playSong(file) {
 	currentGameTitle.textContent = gameName;
 
 	if ('mediaSession' in navigator) {
+		const svgIcon = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='512' height='512'><rect width='24' height='24' fill='#7e57c2'/><path fill='white' d='M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z'/></svg>`;
+		const artworkURL = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgIcon)}`;
+
 		navigator.mediaSession.metadata = new MediaMetadata({
 			title: songDisplayName,
 			artist: gameName,
 			album: '多機能ミュージックリスト',
 			artwork: [
-				{ src: 'https://placehold.co/512x512/7e57c2/ffffff?text=%F0%9F%8E%B5', sizes: '512x512', type: 'image/png' },
+				{ src: artworkURL, sizes: '512x512', type: 'image/svg+xml' },
 			]
 		});
 
