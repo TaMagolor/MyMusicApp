@@ -35,15 +35,19 @@ document.body.appendChild(loadingOverlay);
 // Global Variables
 // グローバル変数
 // =================================================================
-let libraryFiles = [];
-let fileTree = {};
-let selectedFolderPath = null;
-let currentlyEditingPath = null;
-let isEditingFolder = false;
-let recentlyPlayed = [];
-let songProperties = {};
-let nextSongToPlay = null;
-let activeRandomFolderPath = null;
+let libraryFiles = []; // 読み込んだ全ファイルのリスト (Fileオブジェクト)
+let fileTree = {}; // ライブラリの階層構造データ
+let selectedFolderPath = null; // UI上で選択されているフォルダのパス
+let currentlyEditingPath = null; // プロパティパネルで編集中のアイテムのパス
+let isEditingFolder = false; // 編集中のアイテムがフォルダかどうかのフラグ
+
+let recentlyPlayed = []; // 再生履歴を保存する配列
+let songProperties = {}; // ファイルとフォルダ両方の設定を保存するオブジェクト
+
+// --- Seamless Switching Variables ---
+// --- シームレス切替用の変数 ---
+let nextSongToPlay = null; // 次に再生予約されている特定の曲(Fileオブジェクト)。フラグの役割も兼ねる。
+let activeRandomFolderPath = null; // 現在進行中のランダム再生の対象フォルダパス
 
 
 // =================================================================
@@ -124,6 +128,50 @@ fileInput.addEventListener('change', async (event) => {
 	}
 });
 
+// ライブラリのクリックイベント
+treeViewContainer.addEventListener('click', (event) => {
+	const target = event.target;
+	if (target.classList.contains('toggle')) {
+		target.parentElement.classList.toggle('open');
+		return;
+	}
+	const liElement = target.closest('li');
+	if (liElement) {
+		if (liElement.matches('.folder-item')) {
+			handleFolderSelect(liElement);
+		} else if (liElement.matches('.file-item')) {
+			handleSongSelect(liElement);
+		}
+	}
+});
+
+// 「ランダム再生 / 再生予約」ボタン
+randomButton.addEventListener('click', () => {
+	const targetPath = currentlyEditingPath || activeRandomFolderPath;
+	if (!targetPath) {
+		console.warn('ライブラリからフォルダまたは曲を選択してください。');
+		return;
+	}
+	if (isEditingFolder) {
+		activeRandomFolderPath = targetPath;
+		nextSongToPlay = null;
+		if (audioPlayer.paused) {
+			playNextSong();
+		}
+	} else {
+		const file = findFileByPath(targetPath);
+		if (file) {
+			nextSongToPlay = file;
+			if (audioPlayer.paused) {
+				playNextSong();
+			}
+		}
+	}
+});
+
+// 曲の再生終了時
+audioPlayer.addEventListener('ended', () => { setTimeout(playNextSong, 800); });
+
 // 設定保存時、DBにプロパティを保存する
 savePropertiesButton.addEventListener('click', async () => {
 	if (!currentlyEditingPath) return;
@@ -181,84 +229,11 @@ importInput.addEventListener('change', (event) => {
 	event.target.value = '';
 });
 
-// ライブラリのクリックイベント
-treeViewContainer.addEventListener('click', (event) => {
-	const target = event.target;
-	if (target.classList.contains('toggle')) {
-		target.parentElement.classList.toggle('open');
-		return;
-	}
-	const liElement = target.closest('li');
-	if (liElement) {
-		if (liElement.matches('.folder-item')) {
-			handleFolderSelect(liElement);
-		} else if (liElement.matches('.file-item')) {
-			handleSongSelect(liElement);
-		}
-	}
-});
-
-// 「ランダム再生 / 再生予約」ボタン
-randomButton.addEventListener('click', () => {
-	const targetPath = currentlyEditingPath || activeRandomFolderPath;
-	if (!targetPath) {
-		console.warn('ライブラリからフォルダまたは曲を選択してください。');
-		return;
-	}
-	if (isEditingFolder) {
-		activeRandomFolderPath = targetPath;
-		nextSongToPlay = null;
-		if (audioPlayer.paused) {
-			playNextSong();
-		}
-	} else {
-		const file = findFileByPath(targetPath);
-		if (file) {
-			nextSongToPlay = file;
-			if (audioPlayer.paused) {
-				playNextSong();
-			}
-		}
-	}
-});
-
-// 曲の再生終了時
-audioPlayer.addEventListener('ended', () => { setTimeout(playNextSong, 800); });
-
 
 // =================================================================
 // Core Functions
 // 主要な関数
 // =================================================================
-
-/** 曲を再生し、再生履歴をDBに保存する */
-async function playSong(file) {
-	if (!file) return;
-
-	recentlyPlayed.unshift(file.webkitRelativePath);
-	if (recentlyPlayed.length > 200) recentlyPlayed.pop();
-	await saveProperties('recentlyPlayed', recentlyPlayed); // 履歴をDBに保存
-
-	const objectURL = URL.createObjectURL(file);
-	audioPlayer.src = objectURL;
-	audioPlayer.play();
-
-	const props = songProperties[file.webkitRelativePath] || {};
-	const songDisplayName = (props.name && props.name.trim() !== '') ? props.name : (file.name.substring(0, file.name.lastIndexOf('.')) || file.name);
-	currentTrackTitle.textContent = songDisplayName;
-
-	let gameName = 'N/A';
-	const pathParts = file.webkitRelativePath.split('/');
-	for (let i = pathParts.length - 2; i >= 0; i--) {
-		const parentPath = pathParts.slice(0, i + 1).join('/');
-		const parentProps = songProperties[parentPath] || {};
-		if (parentProps.isGame) {
-			gameName = (parentProps.name && parentProps.name.trim() !== '') ? parentProps.name : pathParts[i];
-			break;
-		}
-	}
-	currentGameTitle.textContent = gameName;
-}
 
 /** ツリービューでフォルダが選択された時の処理 */
 function handleFolderSelect(folderElement) {
@@ -313,7 +288,6 @@ function playNextSong() {
     }
 
     if (!activeRandomFolderPath) {
-        // activeRandomFolderPathが未設定の場合、ルートフォルダを対象とする
         if (libraryFiles.length > 0) {
             const rootFolderName = libraryFiles[0].webkitRelativePath.split('/')[0];
             activeRandomFolderPath = rootFolderName;
@@ -362,6 +336,50 @@ function playNextSong() {
     }
     
     playSong(songToPlay);
+}
+
+/** 指定された曲ファイルを再生し、再生履歴とOSのメディア情報を更新する */
+async function playSong(file) {
+	if (!file) return;
+
+	recentlyPlayed.unshift(file.webkitRelativePath);
+	if (recentlyPlayed.length > 200) recentlyPlayed.pop();
+	await saveProperties('recentlyPlayed', recentlyPlayed);
+
+	const objectURL = URL.createObjectURL(file);
+	audioPlayer.src = objectURL;
+	audioPlayer.play();
+
+	const props = songProperties[file.webkitRelativePath] || {};
+	const songDisplayName = (props.name && props.name.trim() !== '') ? props.name : (file.name.substring(0, file.name.lastIndexOf('.')) || file.name);
+	currentTrackTitle.textContent = songDisplayName;
+
+	let gameName = 'N/A';
+	const pathParts = file.webkitRelativePath.split('/');
+	for (let i = pathParts.length - 2; i >= 0; i--) {
+		const parentPath = pathParts.slice(0, i + 1).join('/');
+		const parentProps = songProperties[parentPath] || {};
+		if (parentProps.isGame) {
+			gameName = (parentProps.name && parentProps.name.trim() !== '') ? parentProps.name : pathParts[i];
+			break;
+		}
+	}
+	currentGameTitle.textContent = gameName;
+
+	if ('mediaSession' in navigator) {
+		navigator.mediaSession.metadata = new MediaMetadata({
+			title: songDisplayName,
+			artist: gameName,
+			album: '多機能ミュージックリスト',
+			artwork: [
+				{ src: 'https://placehold.co/512x512/7e57c2/ffffff?text=🎵', sizes: '512x512', type: 'image/png' },
+			]
+		});
+
+		navigator.mediaSession.setActionHandler('play', () => audioPlayer.play());
+		navigator.mediaSession.setActionHandler('pause', () => audioPlayer.pause());
+		navigator.mediaSession.setActionHandler('nexttrack', () => playNextSong());
+	}
 }
 
 
@@ -486,7 +504,7 @@ function findFileByPath(filePath) {
 function buildFileTree(files) {
     const tree = {};
     for (const file of files) {
-        if (!file.webkitRelativePath) continue; // パス情報がないファイルはスキップ
+        if (!file.webkitRelativePath) continue;
         const pathParts = file.webkitRelativePath.split('/');
         let currentLevel = tree;
         for (let i = 0; i < pathParts.length; i++) {
