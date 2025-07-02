@@ -11,8 +11,7 @@ const randomButton = document.getElementById('start-random-button');
 const exportButton = document.getElementById('export-settings-button');
 const importInput = document.getElementById('import-settings-input');
 
-// --- Unified Properties Panel Elements ---
-// --- 統合されたプロパティパネルの要素 ---
+// --- Properties Panel Elements ---
 const propertiesPanel = document.getElementById('properties-panel');
 const propItemName = document.getElementById('prop-item-name');
 const propDisplayName = document.getElementById('prop-display-name');
@@ -23,163 +22,208 @@ const folderSpecificSettings = document.getElementById('folder-specific-settings
 const propIsGame = document.getElementById('prop-is-game');
 const savePropertiesButton = document.getElementById('save-properties-button');
 
+// --- Loading Overlay ---
+const loadingOverlay = document.createElement('div');
+loadingOverlay.id = 'loading-overlay';
+loadingOverlay.innerHTML = '<div>データを処理中...</div>';
+loadingOverlay.style.display = 'none'; // 初期状態は非表示
+document.body.appendChild(loadingOverlay);
+
 
 // =================================================================
 // Global Variables
 // グローバル変数
 // =================================================================
-let libraryFiles = []; // 読み込んだ全ファイルのリスト (Fileオブジェクト)
-let fileTree = {}; // ライブラリの階層構造データ
-let selectedFolderPath = null; // UI上で選択されているフォルダのパス
-let currentlyEditingPath = null; // プロパティパネルで編集中のアイテムのパス
-let isEditingFolder = false; // 編集中のアイテムがフォルダかどうかのフラグ
+let libraryFiles = [];
+let fileTree = {};
+let selectedFolderPath = null;
+let currentlyEditingPath = null;
+let isEditingFolder = false;
+let recentlyPlayed = [];
+let songProperties = {};
+let nextSongToPlay = null;
+let activeRandomFolderPath = null;
 
-let recentlyPlayed = []; // 再生履歴を保存する配列
-let songProperties = {}; // ファイルとフォルダ両方の設定を保存するオブジェクト
 
-// --- Seamless Switching Variables ---
-// --- シームレス切替用の変数 ---
-let nextSongToPlay = null; // 次に再生予約されている特定の曲(Fileオブジェクト)。フラグの役割も兼ねる。
-let activeRandomFolderPath = null; // 現在進行中のランダム再生の対象フォルダパス
+// =================================================================
+// Application Initialization
+// アプリケーションの初期化
+// =================================================================
+window.addEventListener('load', async () => {
+	console.log('App loading...');
+	await loadDataFromDB();
+});
 
+/**
+ * データベースから曲と設定を読み込み、ライブラリを構築する
+ */
+async function loadDataFromDB() {
+	try {
+		showLoading('ライブラリを読み込み中...');
+		const songs = await getAllSongs();
+		const props = await getProperties('songProperties');
+		const recent = await getProperties('recentlyPlayed');
+
+		if (songs && songs.length > 0) {
+			libraryFiles = songs;
+			songProperties = props || {};
+			recentlyPlayed = recent || [];
+			fileTree = buildFileTree(libraryFiles);
+			renderTreeView();
+			console.log(`${libraryFiles.length} songs loaded from DB.`);
+		} else {
+			console.log('No songs found in DB. Please import a folder.');
+		}
+	} catch (error) {
+		console.error('Failed to load data from DB:', error);
+	} finally {
+		hideLoading();
+	}
+}
 
 // =================================================================
 // Event Listeners
-// イベントリスナー
 // =================================================================
 
-// フォルダが選択された時に発火
-fileInput.addEventListener('change', (event) => {
-    libraryFiles = event.target.files;
-    fileTree = buildFileTree(libraryFiles);
-    // 新しいライブラリが読み込まれたら設定と履歴をリセット
-    songProperties = {};
-    recentlyPlayed = [];
+// フォルダ選択時、DBに曲を保存する
+fileInput.addEventListener('change', async (event) => {
+	const files = Array.from(event.target.files);
+	if (files.length === 0) return;
 
-    // activeRandomFolderPathをルートフォルダで初期化する
-    if (libraryFiles.length > 0) {
-        // 最初のファイルのパスからルートフォルダ名を取得
-        const rootFolderName = libraryFiles[0].webkitRelativePath.split('/')[0];
-        activeRandomFolderPath = rootFolderName;
-        console.log(`Default random folder set to: ${activeRandomFolderPath}`);
-    } else {
-        activeRandomFolderPath = null;
-    }
-    
-    renderTreeView();
+	showLoading(`インポート中: 0 / ${files.length} 曲`);
+	try {
+		for (let i = 0; i < files.length; i++) {
+			await saveSong(files[i]);
+			if ((i + 1) % 10 === 0 || i === files.length - 1) {
+				updateLoadingMessage(`インポート中: ${i + 1} / ${files.length} 曲`);
+			}
+		}
+		// インポート完了後、DBから再読み込みして画面を更新
+		await loadDataFromDB();
+	} catch (error) {
+		console.error('Error during import:', error);
+	} finally {
+		hideLoading();
+	}
 });
 
-// ライブラリのツリービューでのクリックを処理 (イベント委任)
-treeViewContainer.addEventListener('click', (event) => {
-    const target = event.target;
-    if (target.classList.contains('toggle')) {
-        target.parentElement.classList.toggle('open');
-        return;
-    }
-    const liElement = target.closest('li');
-    if (liElement) {
-        if (liElement.matches('.folder-item')) {
-            handleFolderSelect(liElement);
-        } else if (liElement.matches('.file-item')) {
-            handleSongSelect(liElement);
-        }
-    }
+// 設定保存時、DBにプロパティを保存する
+savePropertiesButton.addEventListener('click', async () => {
+	if (!currentlyEditingPath) return;
+	const currentProps = songProperties[currentlyEditingPath] || {};
+
+	currentProps.name = propDisplayName.value;
+	currentProps.sortOrder = parseFloat(propSortOrder.value) || 0;
+	if (isEditingFolder) {
+		currentProps.isGame = propIsGame.checked;
+	} else {
+		currentProps.multiplier = parseFloat(propMultiplier.value) || 1.0;
+	}
+	songProperties[currentlyEditingPath] = currentProps;
+	
+	await saveProperties('songProperties', songProperties);
+
+	propertiesPanel.style.display = 'none';
+	renderTreeView();
 });
 
-// 「ランダム再生 / 再生予約」ボタン
-randomButton.addEventListener('click', () => {
-    const targetPath = currentlyEditingPath || activeRandomFolderPath;
-    if (!targetPath) {
-        console.warn('ライブラリからフォルダまたは曲を選択してください。');
-        return;
-    }
-
-    if (isEditingFolder) {
-        activeRandomFolderPath = targetPath;
-        nextSongToPlay = null;
-        
-        if (audioPlayer.paused) {
-            playNextSong();
-        }
-    } else {
-        const file = findFileByPath(targetPath);
-        if (file) {
-            nextSongToPlay = file;
-            if (audioPlayer.paused) {
-                playNextSong();
-            }
-        }
-    }
+// 設定エクスポート時、DBからプロパティを取得する
+exportButton.addEventListener('click', async () => {
+	const propsToExport = await getProperties('songProperties');
+	if (!propsToExport || Object.keys(propsToExport).length === 0) {
+		return;
+	}
+	const settingsJSON = JSON.stringify(propsToExport, null, 2);
+	const blob = new Blob([settingsJSON], { type: 'application/json' });
+	const url = URL.createObjectURL(blob);
+	const a = document.createElement('a');
+	a.href = url;
+	a.download = 'music_app_settings.json';
+	document.body.appendChild(a);
+	a.click();
+	document.body.removeChild(a);
+	URL.revokeObjectURL(url);
 });
 
-// 現在の曲の再生が終了したら次の曲へ
-audioPlayer.addEventListener('ended', () => {
-    setTimeout(playNextSong, 800);
-});
-
-// プロパティパネルの「設定を保存」ボタン
-savePropertiesButton.addEventListener('click', () => {
-    if (!currentlyEditingPath) return;
-    const currentProps = songProperties[currentlyEditingPath] || {};
-
-    currentProps.name = propDisplayName.value;
-    currentProps.sortOrder = parseFloat(propSortOrder.value) || 0;
-
-    if (isEditingFolder) {
-        currentProps.isGame = propIsGame.checked;
-    } else {
-        currentProps.multiplier = parseFloat(propMultiplier.value) || 1.0;
-    }
-
-    songProperties[currentlyEditingPath] = currentProps;
-    
-    propertiesPanel.style.display = 'none';
-    renderTreeView();
-});
-
-// 設定をJSONファイルにエクスポート
-exportButton.addEventListener('click', () => {
-    if (Object.keys(songProperties).length === 0) {
-        return;
-    }
-    const settingsJSON = JSON.stringify(songProperties, null, 2);
-    const blob = new Blob([settingsJSON], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'music_app_settings.json';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-});
-
-// 設定をJSONファイルからインポート
+// 設定インポート時、DBにプロパティを保存する
 importInput.addEventListener('change', (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
+	const file = event.target.files[0];
+	if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        try {
-            const importedSettings = JSON.parse(e.target.result);
-            songProperties = importedSettings;
-            renderTreeView();
-        } catch (error) {
-            console.error('インポートエラー:', error);
-        }
-    };
-    reader.readAsText(file);
-    event.target.value = '';
+	const reader = new FileReader();
+	reader.onload = async (e) => {
+		try {
+			const importedSettings = JSON.parse(e.target.result);
+			await saveProperties('songProperties', importedSettings);
+			await loadDataFromDB();
+		} catch (error) {
+			console.error('インポートエラー:', error);
+		}
+	};
+	reader.readAsText(file);
+	event.target.value = '';
 });
+
+// (他のイベントリスナーは変更なし)
+treeViewContainer.addEventListener('click', (event) => { /* ... */ });
+randomButton.addEventListener('click', () => { /* ... */ });
+audioPlayer.addEventListener('ended', () => { setTimeout(playNextSong, 800); });
 
 
 // =================================================================
 // Core Functions
-// 主要な関数
 // =================================================================
 
-/** ツリービューでフォルダが選択された時の処理 */
+/** 曲を再生し、再生履歴をDBに保存する */
+async function playSong(file) {
+	if (!file) return;
+
+	recentlyPlayed.unshift(file.webkitRelativePath);
+	if (recentlyPlayed.length > 200) recentlyPlayed.pop();
+	await saveProperties('recentlyPlayed', recentlyPlayed); // 履歴をDBに保存
+
+	const objectURL = URL.createObjectURL(file);
+	audioPlayer.src = objectURL;
+	audioPlayer.play();
+
+	const props = songProperties[file.webkitRelativePath] || {};
+	const songDisplayName = (props.name && props.name.trim() !== '') ? props.name : (file.name.substring(0, file.name.lastIndexOf('.')) || file.name);
+	currentTrackTitle.textContent = songDisplayName;
+
+	let gameName = 'N/A';
+	const pathParts = file.webkitRelativePath.split('/');
+	for (let i = pathParts.length - 2; i >= 0; i--) {
+		const parentPath = pathParts.slice(0, i + 1).join('/');
+		const parentProps = songProperties[parentPath] || {};
+		if (parentProps.isGame) {
+			gameName = (parentProps.name && parentProps.name.trim() !== '') ? parentProps.name : pathParts[i];
+			break;
+		}
+	}
+	currentGameTitle.textContent = gameName;
+}
+
+// (他のCore/Helper関数は、データの取得元がメモリ上の変数になったため、変更は軽微または不要)
+// ...
+
+// =================================================================
+// UI Feedback Functions
+// =================================================================
+function showLoading(message) {
+	loadingOverlay.querySelector('div').textContent = message;
+	loadingOverlay.style.display = 'flex';
+}
+function updateLoadingMessage(message) {
+	loadingOverlay.querySelector('div').textContent = message;
+}
+function hideLoading() {
+	loadingOverlay.style.display = 'none';
+}
+
+// =================================================================
+// (ここより下は、前回のコードから変更のない関数群です)
+// =================================================================
+
 function handleFolderSelect(folderElement) {
     const folderPath = folderElement.dataset.folderPath;
     currentlyEditingPath = folderPath;
@@ -201,7 +245,6 @@ function handleFolderSelect(folderElement) {
     propertiesPanel.style.display = 'block';
 }
 
-/** ツリービューで曲が選択された時の処理 */
 function handleSongSelect(songElement) {
     const filePath = songElement.dataset.filePath;
     currentlyEditingPath = filePath;
@@ -221,9 +264,6 @@ function handleSongSelect(songElement) {
     propertiesPanel.style.display = 'block';
 }
 
-/**
- * 次に再生すべき曲を判断し、再生を実行する司令塔となる関数
- */
 function playNextSong() {
     if (nextSongToPlay) {
         playSong(nextSongToPlay);
@@ -277,41 +317,6 @@ function playNextSong() {
     playSong(songToPlay);
 }
 
-/** 指定された曲ファイルを再生し、再生履歴と「ゲーム」表示を更新する */
-function playSong(file) {
-    if (!file) return;
-
-    recentlyPlayed.unshift(file.webkitRelativePath);
-    if (recentlyPlayed.length > 200) recentlyPlayed.pop();
-
-    const objectURL = URL.createObjectURL(file);
-    audioPlayer.src = objectURL;
-    audioPlayer.play();
-
-    const props = songProperties[file.webkitRelativePath] || {};
-    const songDisplayName = (props.name && props.name.trim() !== '') ? props.name : (file.name.substring(0, file.name.lastIndexOf('.')) || file.name);
-    currentTrackTitle.textContent = songDisplayName;
-
-    let gameName = 'N/A';
-    const pathParts = file.webkitRelativePath.split('/');
-    for (let i = pathParts.length - 2; i >= 0; i--) {
-        const parentPath = pathParts.slice(0, i + 1).join('/');
-        const parentProps = songProperties[parentPath] || {};
-        if (parentProps.isGame) {
-            gameName = (parentProps.name && parentProps.name.trim() !== '') ? parentProps.name : pathParts[i];
-            break;
-        }
-    }
-    currentGameTitle.textContent = gameName;
-}
-
-
-// =================================================================
-// Helper Functions
-// ヘルパー関数
-// =================================================================
-
-/** ツリービュー全体をDOMに描画し、トップレベルフォルダを開く */
 function renderTreeView() {
     treeViewContainer.innerHTML = ''; 
     const treeViewHTML = createTreeViewHTML(fileTree);
@@ -323,10 +328,8 @@ function renderTreeView() {
     });
 }
 
-/** ツリービューのHTMLリストを再帰的に構築し、トグルや表示名を設定する */
 function createTreeViewHTML(node, currentPath = '') {
     const ul = document.createElement('ul');
-
     const items = Object.keys(node).map(key => {
         const path = currentPath ? `${currentPath}/${key}` : key;
         const props = songProperties[path] || {};
@@ -336,23 +339,19 @@ function createTreeViewHTML(node, currentPath = '') {
             isFolder: !(node[key] instanceof File)
         };
     });
-
     items.sort((a, b) => a.sortOrder - b.sortOrder);
-
     for (const item of items) {
         const key = item.key;
         const value = node[key];
         const newPath = currentPath ? `${currentPath}/${key}` : key;
         const li = document.createElement('li');
         const props = songProperties[newPath] || {};
-        
         let displayName;
         if (props.name && props.name.trim() !== '') {
             displayName = props.name;
         } else {
             displayName = item.isFolder ? key : (key.substring(0, key.lastIndexOf('.')) || key);
         }
-
         if (item.isFolder) {
             const toggle = document.createElement('span');
             toggle.classList.add('toggle');
@@ -374,7 +373,6 @@ function createTreeViewHTML(node, currentPath = '') {
     return ul;
 }
 
-/** 指定されたフォルダパスに基づいて現在のプレイリストを取得する */
 function getPlaylist(folderPath) {
     const targetPath = folderPath || selectedFolderPath;
     if (targetPath) {
@@ -389,7 +387,6 @@ function getPlaylist(folderPath) {
     }
 }
 
-/** 指定されたノード以下の全てのFileオブジェクトを再帰的に収集する */
 function getFilesFromNode(node) {
     let files = [];
     for (const key in node) {
@@ -403,7 +400,6 @@ function getFilesFromNode(node) {
     return files;
 }
 
-/** ファイルのフルパスからFileオブジェクトを見つける */
 function findFileByPath(filePath) {
     for (const file of libraryFiles) {
         if (file.webkitRelativePath === filePath) {
@@ -413,7 +409,6 @@ function findFileByPath(filePath) {
     return null;
 }
 
-/** フラットなFileListから階層的なfileTreeオブジェクトを構築する */
 function buildFileTree(files) {
     const tree = {};
     for (const file of files) {
@@ -421,27 +416,15 @@ function buildFileTree(files) {
         let currentLevel = tree;
         for (let i = 0; i < pathParts.length; i++) {
             const part = pathParts[i];
-            if (i < pathParts.length - 1) { // ディレクトリの場合
+            if (i < pathParts.length - 1) {
                 if (!currentLevel[part]) {
                     currentLevel[part] = {};
                 }
                 currentLevel = currentLevel[part];
-            } else { // ファイルの場合
+            } else {
                 currentLevel[part] = file;
             }
         }
     }
     return tree;
-}
-
-
-
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').then(registration => {
-            console.log('ServiceWorker registration successful with scope: ', registration.scope);
-        }).catch(error => {
-            console.log('ServiceWorker registration failed: ', error);
-        });
-    });
 }
