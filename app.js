@@ -382,6 +382,24 @@ async function playSong(file) {
 		navigator.mediaSession.setActionHandler('play', () => audioPlayer.play());
 		navigator.mediaSession.setActionHandler('pause', () => audioPlayer.pause());
 		navigator.mediaSession.setActionHandler('nexttrack', () => playNextSong());
+		
+		// 「前の曲へ(previoustrack)」ボタンの動作を「5秒戻し」に割り当てる
+		navigator.mediaSession.setActionHandler('previoustrack', () => {
+			audioPlayer.currentTime = Math.max(audioPlayer.currentTime - 5, 0);
+		});
+
+		// 再生バーのスライド（シーク）操作のハンドラ
+		try {
+			navigator.mediaSession.setActionHandler('seekto', (details) => {
+				if (details.fastSeek && 'fastSeek' in audioPlayer) {
+					audioPlayer.fastSeek(details.seekTime);
+				} else {
+					audioPlayer.currentTime = details.seekTime;
+				}
+			});
+		} catch (error) {
+			console.log('seekto action is not supported.');
+		}
 	}
 }
 
