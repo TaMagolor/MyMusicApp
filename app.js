@@ -1,7 +1,7 @@
 // =================================================================
 // Application Version
 // =================================================================
-const APP_VERSION = 'v.0.6.7';
+const APP_VERSION = 'v.0.6.8';
 
 // =================================================================
 // HTML Element Acquisition
@@ -162,26 +162,23 @@ treeViewContainer.addEventListener('click', (event) => {
 
 // 「ランダム再生 / 再生予約」ボタン
 randomButton.addEventListener('click', () => {
-	const targetPath = currentlyEditingPath || activeRandomFolderPath;
-	if (!targetPath) {
-		console.warn('ライブラリからフォルダまたは曲を選択してください。');
-		return;
-	}
-	if (isEditingFolder) {
-		activeRandomFolderPath = targetPath;
-		nextSongToPlay = null;
-		if (audioPlayer.paused) {
-			playNextSong();
-		}
-	} else {
-		const file = findFileByPath(targetPath);
+	if (currentlyEditingPath && !isEditingFolder) {
+		const file = findFileByPath(currentlyEditingPath);
 		if (file) {
 			nextSongToPlay = file;
 			if (audioPlayer.paused) {
 				playNextSong();
 			}
 		}
+		return;
 	}
+
+	if (currentlyEditingPath && isEditingFolder) {
+		activeRandomFolderPath = currentlyEditingPath;
+	}
+
+	nextSongToPlay = null;
+	playNextSong();
 });
 
 // 曲の再生終了時
