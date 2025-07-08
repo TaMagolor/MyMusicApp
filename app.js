@@ -1,7 +1,7 @@
 // =================================================================
 // Application Version
 // =================================================================
-const APP_VERSION = 'v.0.6.3';
+const APP_VERSION = 'v.0.6.4';
 
 // =================================================================
 // HTML Element Acquisition
@@ -15,6 +15,7 @@ const currentGameTitle = document.getElementById('current-game-title');
 const randomButton = document.getElementById('start-random-button');
 const exportButton = document.getElementById('export-settings-button');
 const importInput = document.getElementById('import-settings-input');
+const versionDisplay = document.getElementById('versionDisplay');
 
 // --- Unified Properties Panel Elements ---
 // --- 統合されたプロパティパネルの要素 ---
