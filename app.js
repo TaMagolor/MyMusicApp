@@ -87,6 +87,12 @@ async function loadDataFromDB() {
 			libraryFiles = restoredFiles;
 			songProperties = props || {};
 			recentlyPlayed = recent || [];
+
+            if (libraryFiles.length > 0) {
+				const rootFolderName = libraryFiles[0].webkitRelativePath.split('/')[0];
+				activeRandomFolderPath = rootFolderName;
+				console.log(`Default random folder set to: ${activeRandomFolderPath}`);
+			}
 			
 			fileTree = buildFileTree(libraryFiles);
 			renderTreeView();
@@ -189,7 +195,13 @@ savePropertiesButton.addEventListener('click', async () => {
 	await saveProperties('songProperties', songProperties);
 
 	propertiesPanel.style.display = 'none';
-	renderTreeView();
+
+    const openFolderPaths = new Set();
+	document.querySelectorAll('.folder-item.open').forEach(folder => {
+		openFolderPaths.add(folder.dataset.folderPath);
+	});
+
+	renderTreeView(openFolderPaths);
 });
 
 // 設定エクスポート時、DBからプロパティを取得する
@@ -430,10 +442,20 @@ function renderTreeView() {
     const treeViewHTML = createTreeViewHTML(fileTree);
     treeViewContainer.appendChild(treeViewHTML);
 
-    const topLevelFolders = treeViewContainer.querySelectorAll(':scope > ul > li.folder-item');
-    topLevelFolders.forEach(folder => {
-        folder.classList.add('open');
-    });
+    if (pathsToKeepOpen) {
+        // 指定されたパスのフォルダを開く
+        document.querySelectorAll('.folder-item').forEach(folder => {
+            if (pathsToKeepOpen.has(folder.dataset.folderPath)) {
+                folder.classList.add('open');
+            }
+        });
+    } else {
+        // デフォルトの動作：トップレベルのフォルダだけを開く
+        const topLevelFolders = treeViewContainer.querySelectorAll(':scope > ul > li.folder-item');
+        topLevelFolders.forEach(folder => {
+            folder.classList.add('open');
+        });
+    }
 }
 
 /** ツリービューのHTMLリストを再帰的に構築し、トグルや表示名を設定する */
