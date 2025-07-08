@@ -1,7 +1,7 @@
 // =================================================================
 // Application Version
 // =================================================================
-const APP_VERSION = 'v.0.6.6';
+const APP_VERSION = 'v.0.6.7';
 
 // =================================================================
 // HTML Element Acquisition
@@ -63,7 +63,7 @@ let activeRandomFolderPath = null; // 現在進行中のランダム再生の対
 window.addEventListener('load', async () => {
 	console.log('App loading...');
     if (versionDisplay) {
-        versionDisplay.textContext = APP_VERSION;
+        versionDisplay.textContent = APP_VERSION;
     }
 	await loadDataFromDB();
 });
@@ -446,7 +446,7 @@ function hideLoading() {
 // =================================================================
 
 /** ツリービュー全体をDOMに描画し、トップレベルフォルダを開く */
-function renderTreeView() {
+function renderTreeView(pathsToKeepOpen = null) {
     treeViewContainer.innerHTML = ''; 
     const treeViewHTML = createTreeViewHTML(fileTree);
     treeViewContainer.appendChild(treeViewHTML);
