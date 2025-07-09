@@ -1,7 +1,7 @@
 // =================================================================
 // Application Version
 // =================================================================
-const APP_VERSION = 'v.0.6.9';
+const APP_VERSION = 'v.0.7.2';
 
 // =================================================================
 // HTML Element Acquisition
@@ -194,7 +194,8 @@ savePropertiesButton.addEventListener('click', async () => {
 	if (isEditingFolder) {
 		currentProps.isGame = propIsGame.checked;
 	} else {
-		currentProps.multiplier = parseFloat(propMultiplier.value) || 1.0;
+		const parsedMultiplier = parseFloat(propMultiplier.value);
+		currentProps.multiplier = ((!isNaN(parsedMultiplier)) ? parsedMultiplier : 1.0);
 	}
 	songProperties[currentlyEditingPath] = currentProps;
 	
@@ -288,7 +289,7 @@ function handleSongSelect(songElement) {
     const props = songProperties[filePath] || {};
     propDisplayName.value = props.name || '';
     propSortOrder.value = props.sortOrder || 0;
-    propMultiplier.value = props.multiplier || 1.0;
+    propMultiplier.value = (typeof props.multiplier === 'number') ? props.multiplier : 1.0;
     
     songSpecificSettings.style.display = 'block';
     folderSpecificSettings.style.display = 'none';
@@ -329,7 +330,7 @@ function playNextSong() {
         const filePath = file.webkitRelativePath;
         const f = excludedPaths.includes(filePath) ? 0 : 1;
         const props = songProperties[filePath] || {};
-        const multiplier = props.multiplier || 1.0;
+        const multiplier = (typeof props.multiplier === 'number') ? props.multiplier : 1.0;
         const weight = multiplier * f;
         if (weight > 0) {
             weightedList.push({ file: file, weight: weight });
