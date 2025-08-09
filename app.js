@@ -1,8 +1,7 @@
 // =================================================================
 // Application Version
 // =================================================================
-const APP_VERSION = 'v.1.0.0';
-
+const APP_VERSION = 'v.1.0.1';
 
 // =================================================================
 // HTML Element Acquisition
@@ -59,19 +58,17 @@ loadingOverlay.innerHTML = '<div>データを処理中...</div>';
 loadingOverlay.style.display = 'none';
 document.body.appendChild(loadingOverlay);
 
-
 // =================================================================
 // Global Variables
 // =================================================================
 let libraryFiles = [];
 let fileTree = {};
-let selectedItemPath = null; // 選択中のアイテムのパス（曲とフォルダで共用）
-let isSelectedItemFolder = false; // 選択中のアイテムがフォルダかどうか
+let selectedItemPath = null;
+let isSelectedItemFolder = false;
 let recentlyPlayed = [];
 let songProperties = {};
 let nextSongToPlay = null;
 let activeRandomFolderPath = null;
-
 
 // =================================================================
 // Application Initialization
@@ -84,24 +81,28 @@ window.addEventListener('load', async () => {
 	await loadDataFromDB();
 });
 
-
 // =================================================================
 // Event Listeners
 // =================================================================
-// --- Navigation ---
 navPlayerButton.addEventListener('click', () => switchScreen('player'));
 navListButton.addEventListener('click', () => switchScreen('list'));
 navSettingsButton.addEventListener('click', () => switchScreen('settings'));
 gotoDetailSettingsButton.addEventListener('click', () => switchSettingsView('detail'));
 backToMainSettingsButton.addEventListener('click', () => switchSettingsView('main'));
-
-// --- List Screen ---
 listRandomButton.addEventListener('click', handleRandomButton);
 listTreeViewContainer.addEventListener('click', handleTreeClick);
-
-// --- Settings Screen ---
 settingsTreeViewContainer.addEventListener('click', handleTreeClick);
-fileInput.addEventListener('change', async (event) => {
+fileInput.addEventListener('change', handleFileInputChange);
+savePropertiesButton.addEventListener('click', handleSaveProperties);
+exportButton.addEventListener('click', handleExport);
+importInput.addEventListener('change', handleImport);
+audioPlayer.addEventListener('ended', () => { setTimeout(playNextSong, 800); });
+audioPlayer.addEventListener('timeupdate', updateMediaPosition);
+
+// =================================================================
+// Event Handler Functions
+// =================================================================
+async function handleFileInputChange(event) {
     const files = Array.from(event.target.files);
     if (files.length === 0) return;
     showLoading(`インポート中: 0 / ${files.length} 曲`);
@@ -118,8 +119,9 @@ fileInput.addEventListener('change', async (event) => {
     } finally {
         hideLoading();
     }
-});
-savePropertiesButton.addEventListener('click', async () => {
+}
+
+async function handleSaveProperties() {
 	if (!selectedItemPath) return;
 	const currentProps = songProperties[selectedItemPath] || {};
 	currentProps.name = propDisplayName.value;
@@ -137,8 +139,9 @@ savePropertiesButton.addEventListener('click', async () => {
 		openFolderPaths.add(folder.dataset.folderPath);
 	});
 	renderTreeView(openFolderPaths);
-});
-exportButton.addEventListener('click', async () => {
+}
+
+async function handleExport() {
 	const propsToExport = await getProperties('songProperties');
 	if (!propsToExport || Object.keys(propsToExport).length === 0) return;
 	const settingsJSON = JSON.stringify(propsToExport, null, 2);
@@ -151,8 +154,9 @@ exportButton.addEventListener('click', async () => {
 	a.click();
 	document.body.removeChild(a);
 	URL.revokeObjectURL(url);
-});
-importInput.addEventListener('change', (event) => {
+}
+
+function handleImport(event) {
 	const file = event.target.files[0];
 	if (!file) return;
 	const reader = new FileReader();
@@ -167,11 +171,9 @@ importInput.addEventListener('change', (event) => {
 	};
 	reader.readAsText(file);
 	event.target.value = '';
-});
+}
 
-// --- Common ---
-audioPlayer.addEventListener('ended', () => { setTimeout(playNextSong, 800); });
-audioPlayer.addEventListener('timeupdate', () => {
+function updateMediaPosition() {
     if ('mediaSession' in navigator && navigator.mediaSession.metadata) {
         navigator.mediaSession.setPositionState({
             duration: audioPlayer.duration || 0,
@@ -179,22 +181,24 @@ audioPlayer.addEventListener('timeupdate', () => {
             position: audioPlayer.currentTime || 0,
         });
     }
-});
-
+}
 
 // =================================================================
 // Core Functions
 // =================================================================
 
-/** ツリービューのクリックを処理する共通ハンドラ */
 function handleTreeClick(event) {
     const target = event.target;
-    if (target.classList.contains('toggle')) {
-        target.parentElement.classList.toggle('open');
-        return;
-    }
     const liElement = target.closest('li');
-    if (liElement) {
+    if (!liElement) return;
+
+    if (target.matches('.toggle-button, .toggle-icon')) {
+        liElement.classList.toggle('open');
+        const button = liElement.querySelector('.toggle-button');
+        if (button) {
+            button.textContent = liElement.classList.contains('open') ? '折り畳み' : '展開';
+        }
+    } else if (target.closest('.item-content')) {
         if (liElement.matches('.folder-item')) {
             handleFolderSelect(liElement);
         } else if (liElement.matches('.file-item')) {
@@ -203,7 +207,6 @@ function handleTreeClick(event) {
     }
 }
 
-/** フォルダが選択された時の処理 */
 function handleFolderSelect(folderElement) {
     const folderPath = folderElement.dataset.folderPath;
     selectedItemPath = folderPath;
@@ -212,7 +215,6 @@ function handleFolderSelect(folderElement) {
     showPropertiesPanel();
 }
 
-/** 曲が選択された時の処理 */
 function handleSongSelect(songElement) {
     const filePath = songElement.dataset.filePath;
     selectedItemPath = filePath;
@@ -221,7 +223,6 @@ function handleSongSelect(songElement) {
     showPropertiesPanel();
 }
 
-/** ランダム再生/予約ボタンの処理 */
 function handleRandomButton() {
     if (!selectedItemPath) {
         playNextSong();
@@ -240,14 +241,11 @@ function handleRandomButton() {
     }
 }
 
-/** 指定された曲ファイルを再生し、再生履歴とUIを更新する */
 async function playSong(file) {
 	if (!file) return;
-
 	recentlyPlayed.unshift(file.webkitRelativePath);
 	if (recentlyPlayed.length > 200) recentlyPlayed.pop();
 	await saveProperties('recentlyPlayed', recentlyPlayed);
-
 	const objectURL = URL.createObjectURL(file);
 	audioPlayer.src = objectURL;
 	try {
@@ -255,11 +253,9 @@ async function playSong(file) {
 	} catch (error) {
 		console.error('Playback failed:', error);
 	}
-
 	const props = songProperties[file.webkitRelativePath] || {};
 	const songDisplayName = (props.name && props.name.trim() !== '') ? props.name : (file.name.substring(0, file.name.lastIndexOf('.')) || file.name);
 	playerSongName.textContent = songDisplayName;
-
 	let gameName = 'N/A';
 	const pathParts = file.webkitRelativePath.split('/');
 	for (let i = pathParts.length - 2; i >= 0; i--) {
@@ -271,18 +267,15 @@ async function playSong(file) {
 		}
 	}
 	playerGameName.textContent = gameName;
-
     if(activeRandomFolderPath) {
         const folderProps = songProperties[activeRandomFolderPath] || {};
-        playerFolderName.textContent = folderProps.name || activeRandomFolderPath.split('/').pop();
+        playerFolderName.textContent = `現在選択中のフォルダ: ${folderProps.name || activeRandomFolderPath.split('/').pop()}`;
     } else {
-        playerFolderName.textContent = '全曲';
+        playerFolderName.textContent = '現在選択中のフォルダ: 全曲';
     }
-
-	const svgIcon = `<svg xmlns='http://www.w.org/2000/svg' viewBox='0 0 24 24' width='512' height='512'><rect width='24' height='24' fill='#7e57c2'/><path fill='white' d='M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z'/></svg>`;
+	const svgIcon = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='512' height='512'><rect width='24' height='24' fill='#7e57c2'/><path fill='white' d='M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z'/></svg>`;
 	const artworkURL = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgIcon)}`;
     playerArtwork.src = artworkURL;
-
 	if ('mediaSession' in navigator) {
 		navigator.mediaSession.metadata = new MediaMetadata({
 			title: songDisplayName,
@@ -304,7 +297,6 @@ async function playSong(file) {
 	}
 }
 
-/** 次に再生すべき曲を判断し、再生を実行する司令塔となる関数 */
 function playNextSong() {
     if (nextSongToPlay) {
         playSong(nextSongToPlay);
@@ -316,14 +308,11 @@ function playNextSong() {
             const rootFolderName = libraryFiles[0].webkitRelativePath.split('/')[0];
             activeRandomFolderPath = rootFolderName;
         } else {
-            console.log("ライブラリに曲がありません。");
             return;
         }
     }
     let playlist = getPlaylist(activeRandomFolderPath);
-    if (playlist.length === 0) {
-        return;
-    }
+    if (playlist.length === 0) return;
     const exclusionCount = Math.floor(Math.min(50, playlist.length / 2));
     const excludedPaths = recentlyPlayed.slice(0, exclusionCount);
     const weightedList = [];
@@ -350,7 +339,6 @@ function playNextSong() {
             }
         }
     } else {
-        console.warn("全ての曲が除外対象でした。除外を無視して再生します。");
         const randomIndex = Math.floor(Math.random() * playlist.length);
         songToPlay = playlist[randomIndex];
     }
@@ -361,7 +349,6 @@ function playNextSong() {
 // =================================================================
 // Helper Functions
 // =================================================================
-/** 画面を切り替える関数 */
 function switchScreen(screenName) {
     [playerScreen, listScreen, settingsScreen].forEach(s => s.classList.remove('active'));
     [navPlayerButton, navListButton, navSettingsButton].forEach(b => b.classList.remove('active'));
@@ -377,7 +364,6 @@ function switchScreen(screenName) {
     }
 }
 
-/** 設定画面内のビューを切り替える関数 */
 function switchSettingsView(viewName) {
     if (viewName === 'detail') {
         mainSettingsView.classList.remove('active');
@@ -388,14 +374,12 @@ function switchSettingsView(viewName) {
     }
 }
 
-/** ツリービュー全体をDOMに描画する */
 function renderTreeView(pathsToKeepOpen = null) {
     const treeHTML = createTreeViewHTML(fileTree);
     listTreeViewContainer.innerHTML = '';
     listTreeViewContainer.appendChild(treeHTML.cloneNode(true));
     settingsTreeViewContainer.innerHTML = '';
     settingsTreeViewContainer.appendChild(treeHTML);
-
     const applyOpenState = (container) => {
         if (pathsToKeepOpen) {
             container.querySelectorAll('.folder-item').forEach(folder => {
@@ -403,26 +387,68 @@ function renderTreeView(pathsToKeepOpen = null) {
                     folder.classList.add('open');
                 }
             });
-        } else {
-            container.querySelectorAll(':scope > ul > li.folder-item').forEach(folder => {
-                folder.classList.add('open');
-            });
         }
     };
     applyOpenState(listTreeViewContainer);
     applyOpenState(settingsTreeViewContainer);
 }
 
-/** プロパティパネルを表示・更新する */
+function createTreeViewHTML(node, currentPath = '') {
+    const ul = document.createElement('ul');
+    const items = Object.keys(node).map(key => {
+        const path = currentPath ? `${currentPath}/${key}` : key;
+        const props = songProperties[path] || {};
+        return { key: key, sortOrder: props.sortOrder || 0, isFolder: !(node[key] instanceof File) };
+    });
+    items.sort((a, b) => a.sortOrder - b.sortOrder);
+    for (const item of items) {
+        const key = item.key;
+        const value = node[key];
+        const newPath = currentPath ? `${currentPath}/${key}` : key;
+        const li = document.createElement('li');
+        const props = songProperties[newPath] || {};
+        let displayName = (props.name && props.name.trim() !== '') ? props.name : (item.isFolder ? key : (key.substring(0, key.lastIndexOf('.')) || key));
+        
+        const itemContainer = document.createElement('div');
+        itemContainer.className = 'list-item-container';
+        
+        const itemContent = document.createElement('span');
+        itemContent.className = 'item-content';
+        
+        if (item.isFolder) {
+            li.classList.add('folder-item');
+            li.dataset.folderPath = newPath;
+            const toggleIcon = document.createElement('span');
+            toggleIcon.className = 'toggle-icon';
+            itemContent.appendChild(toggleIcon);
+            itemContent.append(` 📁 ${displayName}`);
+            const toggleButton = document.createElement('button');
+            toggleButton.className = 'toggle-button';
+            toggleButton.textContent = '展開';
+            itemContainer.appendChild(itemContent);
+            itemContainer.appendChild(toggleButton);
+            li.appendChild(itemContainer);
+            const subUl = createTreeViewHTML(value, newPath);
+            li.appendChild(subUl);
+        } else {
+            li.classList.add('file-item');
+            li.dataset.filePath = value.webkitRelativePath;
+            itemContent.textContent = `🎵 ${displayName}`;
+            itemContainer.appendChild(itemContent);
+            li.appendChild(itemContainer);
+        }
+        ul.appendChild(li);
+    }
+    return ul;
+}
+
 function showPropertiesPanel() {
     if (!selectedItemPath || !detailSettingsView.classList.contains('active')) {
         propertiesPanel.style.display = 'none';
         return;
     }
-    
     const props = songProperties[selectedItemPath] || {};
     propSortOrder.value = props.sortOrder || 0;
-    
     if (isSelectedItemFolder) {
         propItemName.textContent = selectedItemPath.split('/').pop();
         propDisplayName.value = props.name || '';
@@ -441,12 +467,11 @@ function showPropertiesPanel() {
     propertiesPanel.style.display = 'block';
 }
 
-/** 選択されたアイテムのスタイルを更新する */
 function updateSelectionStyle(selectedElement) {
     document.querySelectorAll('.selected-item').forEach(el => el.classList.remove('selected-item'));
     if (selectedElement) {
         const path = selectedElement.dataset.folderPath || selectedElement.dataset.filePath;
-        document.querySelectorAll(`[data-folder-path="${path}"], [data-file-path="${path}"]`).forEach(el => {
+        document.querySelectorAll(`li[data-folder-path="${path}"], li[data-file-path="${path}"]`).forEach(el => {
             el.classList.add('selected-item');
         });
     }
@@ -461,11 +486,7 @@ async function loadDataFromDB() {
 		if (songData && songData.length > 0) {
 			const restoredFiles = songData.map(item => {
 				try {
-					Object.defineProperty(item.file, 'webkitRelativePath', {
-						value: item.path,
-						writable: true,
-						configurable: true
-					});
+					Object.defineProperty(item.file, 'webkitRelativePath', { value: item.path, writable: true, configurable: true });
 				} catch (e) {
 					item.file.webkitRelativePath = item.path;
 				}
@@ -486,51 +507,6 @@ async function loadDataFromDB() {
 	} finally {
 		hideLoading();
 	}
-}
-
-function createTreeViewHTML(node, currentPath = '') {
-    const ul = document.createElement('ul');
-    const items = Object.keys(node).map(key => {
-        const path = currentPath ? `${currentPath}/${key}` : key;
-        const props = songProperties[path] || {};
-        return {
-            key: key,
-            sortOrder: props.sortOrder || 0,
-            isFolder: !(node[key] instanceof File)
-        };
-    });
-    items.sort((a, b) => a.sortOrder - b.sortOrder);
-    for (const item of items) {
-        const key = item.key;
-        const value = node[key];
-        const newPath = currentPath ? `${currentPath}/${key}` : key;
-        const li = document.createElement('li');
-        const props = songProperties[newPath] || {};
-        let displayName;
-        if (props.name && props.name.trim() !== '') {
-            displayName = props.name;
-        } else {
-            displayName = item.isFolder ? key : (key.substring(0, key.lastIndexOf('.')) || key);
-        }
-        if (item.isFolder) {
-            const toggle = document.createElement('span');
-            toggle.classList.add('toggle');
-            li.appendChild(toggle);
-            const textNode = document.createTextNode(` 📁 ${displayName}`);
-            li.appendChild(textNode);
-            li.classList.add('folder-item');
-            li.dataset.folderPath = newPath;
-            const subUl = createTreeViewHTML(value, newPath);
-            li.appendChild(subUl);
-        } else {
-            li.style.paddingLeft = '22px';
-            li.textContent = `🎵 ${displayName}`;
-            li.classList.add('file-item');
-            li.dataset.filePath = value.webkitRelativePath;
-        }
-        ul.appendChild(li);
-    }
-    return ul;
 }
 
 function getPlaylist(folderPath) {

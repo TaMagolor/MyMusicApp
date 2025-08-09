@@ -14,9 +14,9 @@
         <!-- ▼▼▼ 1. プレイヤー画面 ▼▼▼ -->
         <div id="player-screen" class="screen active">
             <div class="player-content">
-                <div id="player-folder-name" class="player-info-text">フォルダ名</div>
+                <div id="player-folder-name" class="player-info-text">現在選択中のフォルダ: フォルダ名</div>
                 <div class="artwork-container">
-                    <img id="player-artwork" src="data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2024%2024'%20width%3D'512'%20height%3D'512'%3E%3Crect%20width%3D'24'%20height%3D'24'%20fill%3D'%237e57c2'%2F%3E%3Cpath%20fill%3D'white'%20d%3D'M12%203v10.55c-.59-.34-1.27-.55-2-.55-2.21%200-4%201.79-4%204s1.79%204%204%204%204-1.79%204-4V7h4V3h-6z'%2F%3E%3C%2Fsvg%3E" alt="Artwork">
+                    <img id="player-artwork" src="data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2024%2024'%20width%3D'512'%20height%3D'512'%3E%3Crect%20width%3D'24'%20height%3D'24'%20fill%3D'%231c1c1e'%2F%3E%3C%2Fsvg%3E" alt="Artwork">
                 </div>
                 <audio id="audioPlayer" controls></audio>
                 <div id="player-song-name" class="player-info-text song-title">曲名</div>
@@ -26,7 +26,7 @@
 
         <!-- ▼▼▼ 2. 一覧画面 ▼▼▼ -->
         <div id="list-screen" class="screen">
-            <div id="list-tree-view-container" class="scrollable-content">
+            <div id="list-tree-view-container" class="scrollable-content tree-view">
                 <!-- 曲リストがここに表示される -->
             </div>
             <div class="fixed-bottom-button-container">
@@ -39,6 +39,7 @@
             <!-- 3-a. 初期画面 -->
             <div id="main-settings" class="settings-view active">
                 <div class="settings-button-group">
+                    <div id="versionDisplay"></div>
                     <label for="fileInput" class="settings-button">ファイルを選択</label>
                     <input type="file" id="fileInput" webkitdirectory>
                     <button id="export-settings-button" class="settings-button">設定をエクスポート</button>
@@ -49,7 +50,7 @@
             </div>
             <!-- 3-b. 詳細設定画面 -->
             <div id="detail-settings" class="settings-view">
-                <div id="settings-tree-view-container" class="scrollable-content split-top">
+                <div id="settings-tree-view-container" class="scrollable-content split-top tree-view">
                     <!-- 詳細設定用リストがここに表示される -->
                 </div>
                 <div id="properties-panel" class="split-bottom">
@@ -76,8 +77,8 @@
         <button id="nav-list" class="nav-button">一覧</button>
         <button id="nav-settings" class="nav-button">設定</button>
     </nav>
-
-    <div id="versionDisplay"></div>
+    
     <script src="db.js"></script>
     <script src="app.js"></script>
 </body>
+</html>
