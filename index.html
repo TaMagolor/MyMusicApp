@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <!-- 画面上部の背景色を黒にするための設定 -->
+    <meta name="theme-color" content="#000000">
     <title>MyMusicApp</title>
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
@@ -73,9 +75,9 @@
 
     <!-- 画面下部のナビゲーションバー -->
     <nav id="bottom-nav">
-        <button id="nav-player" class="nav-button active">プレイヤー</button>
-        <button id="nav-list" class="nav-button">一覧</button>
-        <button id="nav-settings" class="nav-button">設定</button>
+        <div class="nav-item"><button id="nav-player" class="nav-button active">プレイヤー</button></div>
+        <div class="nav-item"><button id="nav-list" class="nav-button">一覧</button></div>
+        <div class="nav-item"><button id="nav-settings" class="nav-button">設定</button></div>
     </nav>
     
     <script src="db.js"></script>

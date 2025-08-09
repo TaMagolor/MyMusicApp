@@ -1,7 +1,8 @@
 // =================================================================
 // Application Version
 // =================================================================
-const APP_VERSION = 'v.1.0.1';
+const APP_VERSION = 'v.1.0.2';
+
 
 // =================================================================
 // HTML Element Acquisition
@@ -58,6 +59,7 @@ loadingOverlay.innerHTML = '<div>データを処理中...</div>';
 loadingOverlay.style.display = 'none';
 document.body.appendChild(loadingOverlay);
 
+
 // =================================================================
 // Global Variables
 // =================================================================
@@ -70,6 +72,7 @@ let songProperties = {};
 let nextSongToPlay = null;
 let activeRandomFolderPath = null;
 
+
 // =================================================================
 // Application Initialization
 // =================================================================
@@ -81,23 +84,32 @@ window.addEventListener('load', async () => {
 	await loadDataFromDB();
 });
 
+
 // =================================================================
 // Event Listeners
 // =================================================================
+// --- Navigation ---
 navPlayerButton.addEventListener('click', () => switchScreen('player'));
 navListButton.addEventListener('click', () => switchScreen('list'));
 navSettingsButton.addEventListener('click', () => switchScreen('settings'));
 gotoDetailSettingsButton.addEventListener('click', () => switchSettingsView('detail'));
 backToMainSettingsButton.addEventListener('click', () => switchSettingsView('main'));
+
+// --- List Screen ---
 listRandomButton.addEventListener('click', handleRandomButton);
 listTreeViewContainer.addEventListener('click', handleTreeClick);
+
+// --- Settings Screen ---
 settingsTreeViewContainer.addEventListener('click', handleTreeClick);
 fileInput.addEventListener('change', handleFileInputChange);
 savePropertiesButton.addEventListener('click', handleSaveProperties);
 exportButton.addEventListener('click', handleExport);
 importInput.addEventListener('change', handleImport);
+
+// --- Common ---
 audioPlayer.addEventListener('ended', () => { setTimeout(playNextSong, 800); });
 audioPlayer.addEventListener('timeupdate', updateMediaPosition);
+
 
 // =================================================================
 // Event Handler Functions
@@ -135,6 +147,7 @@ async function handleSaveProperties() {
 	songProperties[selectedItemPath] = currentProps;
 	await saveProperties('songProperties', songProperties);
 	const openFolderPaths = new Set();
+	// 両方のツリーから開いている状態を取得
 	document.querySelectorAll('.tree-view .folder-item.open').forEach(folder => {
 		openFolderPaths.add(folder.dataset.folderPath);
 	});
@@ -380,6 +393,7 @@ function renderTreeView(pathsToKeepOpen = null) {
     listTreeViewContainer.appendChild(treeHTML.cloneNode(true));
     settingsTreeViewContainer.innerHTML = '';
     settingsTreeViewContainer.appendChild(treeHTML);
+
     const applyOpenState = (container) => {
         if (pathsToKeepOpen) {
             container.querySelectorAll('.folder-item').forEach(folder => {
