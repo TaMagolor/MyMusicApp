@@ -1,7 +1,7 @@
 // =================================================================
 // Application Version
 // =================================================================
-const APP_VERSION = 'v.1.0.2';
+const APP_VERSION = 'v.1.0.3';
 
 
 // =================================================================
@@ -65,8 +65,8 @@ document.body.appendChild(loadingOverlay);
 // =================================================================
 let libraryFiles = [];
 let fileTree = {};
-let selectedItemPath = null;
-let isSelectedItemFolder = false;
+let selectedItemPath = null; // 選択中のアイテムのパス（曲とフォルダで共用）
+let isSelectedItemFolder = false; // 選択中のアイテムがフォルダかどうか
 let recentlyPlayed = [];
 let songProperties = {};
 let nextSongToPlay = null;
@@ -205,12 +205,9 @@ function handleTreeClick(event) {
     const liElement = target.closest('li');
     if (!liElement) return;
 
-    if (target.matches('.toggle-button, .toggle-icon')) {
+    if (target.matches('.toggle-button')) {
         liElement.classList.toggle('open');
-        const button = liElement.querySelector('.toggle-button');
-        if (button) {
-            button.textContent = liElement.classList.contains('open') ? '折り畳み' : '展開';
-        }
+        target.textContent = liElement.classList.contains('open') ? '折り畳み' : '展開';
     } else if (target.closest('.item-content')) {
         if (liElement.matches('.folder-item')) {
             handleFolderSelect(liElement);
@@ -244,7 +241,7 @@ function handleRandomButton() {
     if (isSelectedItemFolder) {
         activeRandomFolderPath = selectedItemPath;
         nextSongToPlay = null;
-        if (audioPlayer.paused) playNextSong();
+        playNextSong();
     } else {
         const file = findFileByPath(selectedItemPath);
         if (file) {
@@ -282,9 +279,9 @@ async function playSong(file) {
 	playerGameName.textContent = gameName;
     if(activeRandomFolderPath) {
         const folderProps = songProperties[activeRandomFolderPath] || {};
-        playerFolderName.textContent = `現在選択中のフォルダ: ${folderProps.name || activeRandomFolderPath.split('/').pop()}`;
+        playerFolderName.textContent = folderProps.name || activeRandomFolderPath.split('/').pop();
     } else {
-        playerFolderName.textContent = '現在選択中のフォルダ: 全曲';
+        playerFolderName.textContent = '全曲';
     }
 	const svgIcon = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='512' height='512'><rect width='24' height='24' fill='#7e57c2'/><path fill='white' d='M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z'/></svg>`;
 	const artworkURL = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgIcon)}`;

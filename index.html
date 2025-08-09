@@ -16,9 +16,12 @@
         <!-- ▼▼▼ 1. プレイヤー画面 ▼▼▼ -->
         <div id="player-screen" class="screen active">
             <div class="player-content">
-                <div id="player-folder-name" class="player-info-text">現在選択中のフォルダ: フォルダ名</div>
+                <div id="player-folder-name-container" class="player-info-text">
+                    <span class="folder-label">現在選択中のフォルダ:</span>
+                    <span id="player-folder-name">フォルダ名</span>
+                </div>
                 <div class="artwork-container">
-                    <img id="player-artwork" src="data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2024%2024'%20width%3D'512'%20height%3D'512'%3E%3Crect%20width%3D'24'%20height%3D'24'%20fill%3D'%231c1c1e'%2F%3E%3C%2Fsvg%3E" alt="Artwork">
+                    <img id="player-artwork" src="data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2024%2024'%20width%3D'512'%20height%3D'512'%3E%3Crect%20width%3D'24'%20height%3D'24'%20fill%3D'%237e57c2'%2F%3E%3Cpath%20fill%3D'white'%20d%3D'M12%203v10.55c-.59-.34-1.27-.55-2-.55-2.21%200-4%201.79-4%204s1.79%204%204%204%204-1.79%204-4V7h4V3h-6z'%2F%3E%3C%2Fsvg%3E" alt="Artwork">
                 </div>
                 <audio id="audioPlayer" controls></audio>
                 <div id="player-song-name" class="player-info-text song-title">曲名</div>
@@ -44,10 +47,10 @@
                     <div id="versionDisplay"></div>
                     <label for="fileInput" class="settings-button">ファイルを選択</label>
                     <input type="file" id="fileInput" webkitdirectory>
-                    <button id="export-settings-button" class="settings-button">設定をエクスポート</button>
                     <label for="import-settings-input" class="settings-button">設定をインポート</label>
                     <input type="file" id="import-settings-input" accept=".json">
-                    <button id="goto-detail-settings-button" class="settings-button">詳細設定</button>
+                    <button id="export-settings-button" class="settings-button">設定をエクスポート</button>
+                    <button id="goto-detail-settings-button" class="settings-button detail-button">詳細設定</button>
                 </div>
             </div>
             <!-- 3-b. 詳細設定画面 -->
