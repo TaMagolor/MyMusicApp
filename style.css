@@ -1,66 +1,163 @@
-.selected-folder {
-    background-color: #e0f7ff; /* 明るい水色 */
-    font-weight: bold;
-    border-radius: 4px;
+/* 基本設定 */
+:root {
+    --nav-height: 60px;
+    --list-button-height: 70px;
 }
-
-.button-like-label {
-    padding: 4px 8px;
-    border: 1px solid #ccc;
-    background-color: #f0f0f0;
-    border-radius: 4px;
+body, html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    background-color: #000;
+    color: #fff;
+    overflow: hidden;
+    -webkit-user-select: none; user-select: none;
+}
+button, label.settings-button {
+    padding: 10px 20px;
+    font-size: 1em;
+    border-radius: 20px;
+    border: 1px solid #555;
+    background-color: #333;
+    color: #fff;
     cursor: pointer;
-    font-size: 14px;
+}
+input[type="file"] { display: none; }
+
+/* アプリ全体のコンテナ */
+#app-container {
+    width: 100%;
+    height: calc(100% - var(--nav-height));
+    overflow: hidden;
+    position: relative;
+}
+.screen {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+}
+.screen.active { display: flex; }
+
+/* --- 1. プレイヤー画面 --- */
+.player-content {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    gap: 15px;
+}
+.artwork-container {
+    width: 75vw;
+    max-width: 320px;
+    aspect-ratio: 1 / 1;
+}
+#player-artwork {
+    width: 100%;
+    height: 100%;
+    border-radius: 12px;
+    object-fit: cover;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+}
+#audioPlayer { width: 90%; max-width: 400px; }
+.player-info-text { text-align: center; width: 90%; }
+.song-title { font-size: 1.2em; font-weight: bold; }
+.game-title { color: #ccc; }
+
+/* --- 2. 一覧画面 --- */
+.scrollable-content {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+#list-tree-view-container {
+    height: calc(100% - var(--list-button-height));
+    padding: 10px;
+}
+.fixed-bottom-button-container {
+    height: var(--list-button-height);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: rgba(0,0,0,0.8);
+    backdrop-filter: blur(10px);
 }
 
-.button-like-label:hover {
-    background-color: #e0e0e0;
+/* --- 3. 設定画面 --- */
+.settings-view {
+    width: 100%;
+    height: 100%;
+    display: none;
+    flex-direction: column;
+}
+.settings-view.active { display: flex; }
+.settings-button-group {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+}
+.settings-button { text-align: center; }
+
+/* 3-b. 詳細設定画面 */
+.split-top { height: 50%; }
+.split-bottom {
+    height: 50%;
+    background-color: #1c1c1e;
+    padding: 10px;
+    overflow-y: auto;
+    border-top: 1px solid #444;
+}
+#back-to-main-settings-button {
+    position: absolute;
+    top: 52%;
+    right: 15px;
 }
 
-/* フォルダツリーのスタイル調整 */
-#tree-view-container ul {
-    padding-left: 20px;
+/* --- 共通ツリービューのスタイル --- */
+.tree-view ul {
+    padding-left: 15px; /* インデントを狭く */
     list-style-type: none;
 }
+.tree-view li { padding: 5px 0; }
+.toggle { display: inline-block; width: 0; height: 0; margin-right: 8px; border-top: 5px solid transparent; border-bottom: 5px solid transparent; border-left: 8px solid #ccc; transition: transform 0.2s ease; cursor: pointer; vertical-align: middle; }
+.tree-view li > ul { display: none; }
+.tree-view li.open > ul { display: block; }
+.tree-view li.open > .toggle { transform: rotate(90deg); }
+.selected-folder { background-color: #333; border-radius: 4px; }
 
-#tree-view-container li {
-    padding: 3px 0;
-}
 
-/* 開閉トグル（三角形）のスタイル */
-.toggle {
-    display: inline-block;
-    width: 0;
-    height: 0;
-    margin-right: 8px;
-    border-top: 5px solid transparent;
-    border-bottom: 5px solid transparent;
-    border-left: 8px solid #555; /* 三角形の色 */
-    transition: transform 0.2s ease; /* 回転アニメーション */
-    cursor: pointer;
-    vertical-align: middle;
-}
-
-/* デフォルトでサブリスト（入れ子のul）を非表示にする */
-#tree-view-container li > ul {
-    display: none;
-}
-
-/* "open"クラスが付いたフォルダのサブリストを表示する */
-#tree-view-container li.open > ul {
-    display: block;
-}
-
-/* "open"クラスが付いたフォルダのトグルを90度回転させる */
-#tree-view-container li.open > .toggle {
-    transform: rotate(90deg);
-}
-
-#versionDisplay {
+/* --- 下部ナビゲーションバー --- */
+#bottom-nav {
     position: fixed;
-    bottom: 10px;
-    right: 20px;
-    font-size: 12px;
-    color: #cccccc;
-    z-index: 1001;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: var(--nav-height);
+    background-color: #1c1c1e;
+    border-top: 1px solid #444;
+    display: flex;
+    justify-content: space-around;
+    align-items: flex-start;
+    padding-top: 5px;
+    padding-bottom: env(safe-area-inset-bottom);
 }
+.nav-button {
+    background: none;
+    border: none;
+    color: #8e8e93;
+    font-size: 1em;
+    cursor: pointer;
+}
+.nav-button.active { color: #fff; font-weight: bold; }
+
+/* バージョン表示 */
+#versionDisplay { position: fixed; bottom: calc(var(--nav-height) + 5px); right: 10px; font-size: 12px; color: #555; z-index: 1001; }

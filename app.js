@@ -1,24 +1,43 @@
 // =================================================================
 // Application Version
 // =================================================================
-const APP_VERSION = 'v.0.7.2';
+const APP_VERSION = 'v.1.0.0';
+
 
 // =================================================================
 // HTML Element Acquisition
-// HTML要素の取得
 // =================================================================
+// --- Screens & Views ---
+const playerScreen = document.getElementById('player-screen');
+const listScreen = document.getElementById('list-screen');
+const settingsScreen = document.getElementById('settings-screen');
+const mainSettingsView = document.getElementById('main-settings');
+const detailSettingsView = document.getElementById('detail-settings');
+
+// --- Navigation ---
+const navPlayerButton = document.getElementById('nav-player');
+const navListButton = document.getElementById('nav-list');
+const navSettingsButton = document.getElementById('nav-settings');
+
+// --- Player Screen Elements ---
+const playerFolderName = document.getElementById('player-folder-name');
+const playerArtwork = document.getElementById('player-artwork');
+const playerSongName = document.getElementById('player-song-name');
+const playerGameName = document.getElementById('player-game-name');
+
+// --- List Screen Elements ---
+const listTreeViewContainer = document.getElementById('list-tree-view-container');
+const listRandomButton = document.getElementById('list-random-button');
+
+// --- Settings Screen Elements ---
 const fileInput = document.getElementById('fileInput');
-const treeViewContainer = document.getElementById('tree-view-container');
-const audioPlayer = document.getElementById('audioPlayer');
-const currentTrackTitle = document.getElementById('current-track-title');
-const currentGameTitle = document.getElementById('current-game-title');
-const randomButton = document.getElementById('start-random-button');
 const exportButton = document.getElementById('export-settings-button');
 const importInput = document.getElementById('import-settings-input');
-const versionDisplay = document.getElementById('versionDisplay');
+const gotoDetailSettingsButton = document.getElementById('goto-detail-settings-button');
+const settingsTreeViewContainer = document.getElementById('settings-tree-view-container');
+const backToMainSettingsButton = document.getElementById('back-to-main-settings-button');
 
-// --- Unified Properties Panel Elements ---
-// --- 統合されたプロパティパネルの要素 ---
+// --- Properties Panel Elements ---
 const propertiesPanel = document.getElementById('properties-panel');
 const propItemName = document.getElementById('prop-item-name');
 const propDisplayName = document.getElementById('prop-display-name');
@@ -29,194 +48,99 @@ const folderSpecificSettings = document.getElementById('folder-specific-settings
 const propIsGame = document.getElementById('prop-is-game');
 const savePropertiesButton = document.getElementById('save-properties-button');
 
+// --- Common Elements ---
+const audioPlayer = document.getElementById('audioPlayer');
+const versionDisplay = document.getElementById('versionDisplay');
+
 // --- Loading Overlay ---
 const loadingOverlay = document.createElement('div');
 loadingOverlay.id = 'loading-overlay';
 loadingOverlay.innerHTML = '<div>データを処理中...</div>';
-loadingOverlay.style.display = 'none'; // 初期状態は非表示
+loadingOverlay.style.display = 'none';
 document.body.appendChild(loadingOverlay);
 
 
 // =================================================================
 // Global Variables
-// グローバル変数
 // =================================================================
-let libraryFiles = []; // 読み込んだ全ファイルのリスト (Fileオブジェクト)
-let fileTree = {}; // ライブラリの階層構造データ
-let selectedFolderPath = null; // UI上で選択されているフォルダのパス
-let currentlyEditingPath = null; // プロパティパネルで編集中のアイテムのパス
-let isEditingFolder = false; // 編集中のアイテムがフォルダかどうかのフラグ
-
-let recentlyPlayed = []; // 再生履歴を保存する配列
-let songProperties = {}; // ファイルとフォルダ両方の設定を保存するオブジェクト
-
-// --- Seamless Switching Variables ---
-// --- シームレス切替用の変数 ---
-let nextSongToPlay = null; // 次に再生予約されている特定の曲(Fileオブジェクト)。フラグの役割も兼ねる。
-let activeRandomFolderPath = null; // 現在進行中のランダム再生の対象フォルダパス
+let libraryFiles = [];
+let fileTree = {};
+let selectedItemPath = null; // 選択中のアイテムのパス（曲とフォルダで共用）
+let isSelectedItemFolder = false; // 選択中のアイテムがフォルダかどうか
+let recentlyPlayed = [];
+let songProperties = {};
+let nextSongToPlay = null;
+let activeRandomFolderPath = null;
 
 
 // =================================================================
 // Application Initialization
-// アプリケーションの初期化
 // =================================================================
 window.addEventListener('load', async () => {
 	console.log('App loading...');
-    if (versionDisplay) {
-        versionDisplay.textContent = APP_VERSION;
-    }
+	if (versionDisplay) {
+		versionDisplay.textContent = APP_VERSION;
+	}
 	await loadDataFromDB();
 });
-
-/**
- * データベースから曲と設定を読み込み、ライブラリを構築する
- */
-async function loadDataFromDB() {
-	try {
-		showLoading('ライブラリを読み込み中...');
-		const songData = await getAllSongs();
-		const props = await getProperties('songProperties');
-		const recent = await getProperties('recentlyPlayed');
-
-		if (songData && songData.length > 0) {
-			// Fileオブジェクトに失われたパス情報を復元する
-			const restoredFiles = songData.map(item => {
-				try {
-					Object.defineProperty(item.file, 'webkitRelativePath', {
-						value: item.path,
-						writable: true,
-						configurable: true
-					});
-				} catch (e) {
-					item.file.webkitRelativePath = item.path;
-				}
-				return item.file;
-			});
-
-			libraryFiles = restoredFiles;
-			songProperties = props || {};
-			recentlyPlayed = recent || [];
-
-            if (libraryFiles.length > 0) {
-				const rootFolderName = libraryFiles[0].webkitRelativePath.split('/')[0];
-				activeRandomFolderPath = rootFolderName;
-				console.log(`Default random folder set to: ${activeRandomFolderPath}`);
-			}
-			
-			fileTree = buildFileTree(libraryFiles);
-			renderTreeView();
-			console.log(`${libraryFiles.length} songs loaded from DB.`);
-		} else {
-			console.log('No songs found in DB. Please import a folder.');
-		}
-	} catch (error) {
-		console.error('Failed to load data from DB:', error);
-	} finally {
-		hideLoading();
-	}
-}
 
 
 // =================================================================
 // Event Listeners
-// イベントリスナー
 // =================================================================
+// --- Navigation ---
+navPlayerButton.addEventListener('click', () => switchScreen('player'));
+navListButton.addEventListener('click', () => switchScreen('list'));
+navSettingsButton.addEventListener('click', () => switchScreen('settings'));
+gotoDetailSettingsButton.addEventListener('click', () => switchSettingsView('detail'));
+backToMainSettingsButton.addEventListener('click', () => switchSettingsView('main'));
 
-// フォルダ選択時、DBに曲を保存する
+// --- List Screen ---
+listRandomButton.addEventListener('click', handleRandomButton);
+listTreeViewContainer.addEventListener('click', handleTreeClick);
+
+// --- Settings Screen ---
+settingsTreeViewContainer.addEventListener('click', handleTreeClick);
 fileInput.addEventListener('change', async (event) => {
-	const files = Array.from(event.target.files);
-	if (files.length === 0) return;
-
-	showLoading(`インポート中: 0 / ${files.length} 曲`);
-	try {
-		for (let i = 0; i < files.length; i++) {
-			await saveSong(files[i]);
-			if ((i + 1) % 10 === 0 || i === files.length - 1) {
-				updateLoadingMessage(`インポート中: ${i + 1} / ${files.length} 曲`);
-			}
-		}
-		await loadDataFromDB();
-	} catch (error) {
-		console.error('Error during import:', error);
-	} finally {
-		hideLoading();
-	}
+    const files = Array.from(event.target.files);
+    if (files.length === 0) return;
+    showLoading(`インポート中: 0 / ${files.length} 曲`);
+    try {
+        for (let i = 0; i < files.length; i++) {
+            await saveSong(files[i]);
+            if ((i + 1) % 10 === 0 || i === files.length - 1) {
+                updateLoadingMessage(`インポート中: ${i + 1} / ${files.length} 曲`);
+            }
+        }
+        await loadDataFromDB();
+    } catch (error) {
+        console.error('Error during import:', error);
+    } finally {
+        hideLoading();
+    }
 });
-
-// ライブラリのクリックイベント
-treeViewContainer.addEventListener('click', (event) => {
-	const target = event.target;
-	if (target.classList.contains('toggle')) {
-		target.parentElement.classList.toggle('open');
-		return;
-	}
-	const liElement = target.closest('li');
-	if (liElement) {
-		if (liElement.matches('.folder-item')) {
-			handleFolderSelect(liElement);
-		} else if (liElement.matches('.file-item')) {
-			handleSongSelect(liElement);
-		}
-	}
-});
-
-// 「ランダム再生 / 再生予約」ボタン
-randomButton.addEventListener('click', () => {
-	if (currentlyEditingPath && !isEditingFolder) {
-		const file = findFileByPath(currentlyEditingPath);
-		if (file) {
-			nextSongToPlay = file;
-			if (audioPlayer.paused) {
-				playNextSong();
-			}
-		}
-		return;
-	}
-
-	if (currentlyEditingPath && isEditingFolder) {
-		activeRandomFolderPath = currentlyEditingPath;
-	}
-
-	nextSongToPlay = null;
-	playNextSong();
-});
-
-// 曲の再生終了時
-audioPlayer.addEventListener('ended', () => { setTimeout(playNextSong, 800); });
-
-// 設定保存時、DBにプロパティを保存する
 savePropertiesButton.addEventListener('click', async () => {
-	if (!currentlyEditingPath) return;
-	const currentProps = songProperties[currentlyEditingPath] || {};
-
+	if (!selectedItemPath) return;
+	const currentProps = songProperties[selectedItemPath] || {};
 	currentProps.name = propDisplayName.value;
 	currentProps.sortOrder = parseFloat(propSortOrder.value) || 0;
-	if (isEditingFolder) {
+	if (isSelectedItemFolder) {
 		currentProps.isGame = propIsGame.checked;
 	} else {
 		const parsedMultiplier = parseFloat(propMultiplier.value);
-		currentProps.multiplier = ((!isNaN(parsedMultiplier)) ? parsedMultiplier : 1.0);
+		currentProps.multiplier = !isNaN(parsedMultiplier) ? parsedMultiplier : 1.0;
 	}
-	songProperties[currentlyEditingPath] = currentProps;
-	
+	songProperties[selectedItemPath] = currentProps;
 	await saveProperties('songProperties', songProperties);
-
-	propertiesPanel.style.display = 'none';
-
-    const openFolderPaths = new Set();
-	document.querySelectorAll('.folder-item.open').forEach(folder => {
+	const openFolderPaths = new Set();
+	document.querySelectorAll('.tree-view .folder-item.open').forEach(folder => {
 		openFolderPaths.add(folder.dataset.folderPath);
 	});
-
 	renderTreeView(openFolderPaths);
 });
-
-// 設定エクスポート時、DBからプロパティを取得する
 exportButton.addEventListener('click', async () => {
 	const propsToExport = await getProperties('songProperties');
-	if (!propsToExport || Object.keys(propsToExport).length === 0) {
-		return;
-	}
+	if (!propsToExport || Object.keys(propsToExport).length === 0) return;
 	const settingsJSON = JSON.stringify(propsToExport, null, 2);
 	const blob = new Blob([settingsJSON], { type: 'application/json' });
 	const url = URL.createObjectURL(blob);
@@ -228,12 +152,9 @@ exportButton.addEventListener('click', async () => {
 	document.body.removeChild(a);
 	URL.revokeObjectURL(url);
 });
-
-// 設定インポート時、DBにプロパティを保存する
 importInput.addEventListener('change', (event) => {
 	const file = event.target.files[0];
 	if (!file) return;
-
 	const reader = new FileReader();
 	reader.onload = async (e) => {
 		try {
@@ -248,64 +169,148 @@ importInput.addEventListener('change', (event) => {
 	event.target.value = '';
 });
 
+// --- Common ---
+audioPlayer.addEventListener('ended', () => { setTimeout(playNextSong, 800); });
+audioPlayer.addEventListener('timeupdate', () => {
+    if ('mediaSession' in navigator && navigator.mediaSession.metadata) {
+        navigator.mediaSession.setPositionState({
+            duration: audioPlayer.duration || 0,
+            playbackRate: audioPlayer.playbackRate,
+            position: audioPlayer.currentTime || 0,
+        });
+    }
+});
+
 
 // =================================================================
 // Core Functions
-// 主要な関数
 // =================================================================
 
-/** ツリービューでフォルダが選択された時の処理 */
+/** ツリービューのクリックを処理する共通ハンドラ */
+function handleTreeClick(event) {
+    const target = event.target;
+    if (target.classList.contains('toggle')) {
+        target.parentElement.classList.toggle('open');
+        return;
+    }
+    const liElement = target.closest('li');
+    if (liElement) {
+        if (liElement.matches('.folder-item')) {
+            handleFolderSelect(liElement);
+        } else if (liElement.matches('.file-item')) {
+            handleSongSelect(liElement);
+        }
+    }
+}
+
+/** フォルダが選択された時の処理 */
 function handleFolderSelect(folderElement) {
     const folderPath = folderElement.dataset.folderPath;
-    currentlyEditingPath = folderPath;
-    isEditingFolder = true;
-
-    const currentSelected = document.querySelector('.selected-folder');
-    if (currentSelected) currentSelected.classList.remove('selected-folder');
-    folderElement.classList.add('selected-folder');
-    selectedFolderPath = folderPath;
-
-    propItemName.textContent = folderPath.split('/').pop();
-    const props = songProperties[folderPath] || {};
-    propDisplayName.value = props.name || '';
-    propSortOrder.value = props.sortOrder || 0;
-    propIsGame.checked = props.isGame || false;
-    
-    songSpecificSettings.style.display = 'none';
-    folderSpecificSettings.style.display = 'block';
-    propertiesPanel.style.display = 'block';
+    selectedItemPath = folderPath;
+    isSelectedItemFolder = true;
+    updateSelectionStyle(folderElement);
+    showPropertiesPanel();
 }
 
-/** ツリービューで曲が選択された時の処理 */
+/** 曲が選択された時の処理 */
 function handleSongSelect(songElement) {
     const filePath = songElement.dataset.filePath;
-    currentlyEditingPath = filePath;
-    isEditingFolder = false;
-    
-    const file = findFileByPath(filePath);
-    if (!file) return;
-    propItemName.textContent = file.name;
-
-    const props = songProperties[filePath] || {};
-    propDisplayName.value = props.name || '';
-    propSortOrder.value = props.sortOrder || 0;
-    propMultiplier.value = (typeof props.multiplier === 'number') ? props.multiplier : 1.0;
-    
-    songSpecificSettings.style.display = 'block';
-    folderSpecificSettings.style.display = 'none';
-    propertiesPanel.style.display = 'block';
+    selectedItemPath = filePath;
+    isSelectedItemFolder = false;
+    updateSelectionStyle(songElement);
+    showPropertiesPanel();
 }
 
-/**
- * 次に再生すべき曲を判断し、再生を実行する司令塔となる関数
- */
+/** ランダム再生/予約ボタンの処理 */
+function handleRandomButton() {
+    if (!selectedItemPath) {
+        playNextSong();
+        return;
+    }
+    if (isSelectedItemFolder) {
+        activeRandomFolderPath = selectedItemPath;
+        nextSongToPlay = null;
+        if (audioPlayer.paused) playNextSong();
+    } else {
+        const file = findFileByPath(selectedItemPath);
+        if (file) {
+            nextSongToPlay = file;
+            if (audioPlayer.paused) playNextSong();
+        }
+    }
+}
+
+/** 指定された曲ファイルを再生し、再生履歴とUIを更新する */
+async function playSong(file) {
+	if (!file) return;
+
+	recentlyPlayed.unshift(file.webkitRelativePath);
+	if (recentlyPlayed.length > 200) recentlyPlayed.pop();
+	await saveProperties('recentlyPlayed', recentlyPlayed);
+
+	const objectURL = URL.createObjectURL(file);
+	audioPlayer.src = objectURL;
+	try {
+		await audioPlayer.play();
+	} catch (error) {
+		console.error('Playback failed:', error);
+	}
+
+	const props = songProperties[file.webkitRelativePath] || {};
+	const songDisplayName = (props.name && props.name.trim() !== '') ? props.name : (file.name.substring(0, file.name.lastIndexOf('.')) || file.name);
+	playerSongName.textContent = songDisplayName;
+
+	let gameName = 'N/A';
+	const pathParts = file.webkitRelativePath.split('/');
+	for (let i = pathParts.length - 2; i >= 0; i--) {
+		const parentPath = pathParts.slice(0, i + 1).join('/');
+		const parentProps = songProperties[parentPath] || {};
+		if (parentProps.isGame) {
+			gameName = (parentProps.name && parentProps.name.trim() !== '') ? parentProps.name : pathParts[i];
+			break;
+		}
+	}
+	playerGameName.textContent = gameName;
+
+    if(activeRandomFolderPath) {
+        const folderProps = songProperties[activeRandomFolderPath] || {};
+        playerFolderName.textContent = folderProps.name || activeRandomFolderPath.split('/').pop();
+    } else {
+        playerFolderName.textContent = '全曲';
+    }
+
+	const svgIcon = `<svg xmlns='http://www.w.org/2000/svg' viewBox='0 0 24 24' width='512' height='512'><rect width='24' height='24' fill='#7e57c2'/><path fill='white' d='M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z'/></svg>`;
+	const artworkURL = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgIcon)}`;
+    playerArtwork.src = artworkURL;
+
+	if ('mediaSession' in navigator) {
+		navigator.mediaSession.metadata = new MediaMetadata({
+			title: songDisplayName,
+			artist: gameName,
+			album: '多機能ミュージックリスト',
+			artwork: [ { src: artworkURL, sizes: '512x512', type: 'image/svg+xml' } ]
+		});
+		navigator.mediaSession.setActionHandler('play', () => audioPlayer.play());
+		navigator.mediaSession.setActionHandler('pause', () => audioPlayer.pause());
+		navigator.mediaSession.setActionHandler('nexttrack', () => playNextSong());
+		navigator.mediaSession.setActionHandler('previoustrack', () => {
+			audioPlayer.currentTime = Math.max(audioPlayer.currentTime - 5, 0);
+		});
+		try {
+			navigator.mediaSession.setActionHandler('seekto', (details) => {
+				audioPlayer.currentTime = details.seekTime;
+			});
+		} catch (error) { console.log('seekto action is not supported.'); }
+	}
+}
+
+/** 次に再生すべき曲を判断し、再生を実行する司令塔となる関数 */
 function playNextSong() {
     if (nextSongToPlay) {
         playSong(nextSongToPlay);
         nextSongToPlay = null;
         return;
     }
-
     if (!activeRandomFolderPath) {
         if (libraryFiles.length > 0) {
             const rootFolderName = libraryFiles[0].webkitRelativePath.split('/')[0];
@@ -315,17 +320,14 @@ function playNextSong() {
             return;
         }
     }
-
     let playlist = getPlaylist(activeRandomFolderPath);
     if (playlist.length === 0) {
         return;
     }
-
     const exclusionCount = Math.floor(Math.min(50, playlist.length / 2));
     const excludedPaths = recentlyPlayed.slice(0, exclusionCount);
     const weightedList = [];
     let totalWeight = 0;
-    
     for (const file of playlist) {
         const filePath = file.webkitRelativePath;
         const f = excludedPaths.includes(filePath) ? 0 : 1;
@@ -337,7 +339,6 @@ function playNextSong() {
             totalWeight += weight;
         }
     }
-
     let songToPlay = null;
     if (totalWeight > 0) {
         let randomValue = Math.random() * totalWeight;
@@ -353,119 +354,140 @@ function playNextSong() {
         const randomIndex = Math.floor(Math.random() * playlist.length);
         songToPlay = playlist[randomIndex];
     }
-    
     playSong(songToPlay);
-}
-
-/** 指定された曲ファイルを再生し、再生履歴とOSのメディア情報を更新する */
-async function playSong(file) {
-	if (!file) return;
-
-	recentlyPlayed.unshift(file.webkitRelativePath);
-	if (recentlyPlayed.length > 200) recentlyPlayed.pop();
-	await saveProperties('recentlyPlayed', recentlyPlayed);
-
-	const objectURL = URL.createObjectURL(file);
-	audioPlayer.src = objectURL;
-	audioPlayer.play();
-
-	const props = songProperties[file.webkitRelativePath] || {};
-	const songDisplayName = (props.name && props.name.trim() !== '') ? props.name : (file.name.substring(0, file.name.lastIndexOf('.')) || file.name);
-	currentTrackTitle.textContent = songDisplayName;
-
-	let gameName = 'N/A';
-	const pathParts = file.webkitRelativePath.split('/');
-	for (let i = pathParts.length - 2; i >= 0; i--) {
-		const parentPath = pathParts.slice(0, i + 1).join('/');
-		const parentProps = songProperties[parentPath] || {};
-		if (parentProps.isGame) {
-			gameName = (parentProps.name && parentProps.name.trim() !== '') ? parentProps.name : pathParts[i];
-			break;
-		}
-	}
-	currentGameTitle.textContent = gameName;
-
-	if ('mediaSession' in navigator) {
-		const svgIcon = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='512' height='512'><rect width='24' height='24' fill='#7e57c2'/><path fill='white' d='M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z'/></svg>`;
-		const artworkURL = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgIcon)}`;
-
-		navigator.mediaSession.metadata = new MediaMetadata({
-			title: songDisplayName,
-			artist: gameName,
-			album: '多機能ミュージックリスト',
-			artwork: [
-				{ src: artworkURL, sizes: '512x512', type: 'image/svg+xml' },
-			]
-		});
-
-		navigator.mediaSession.setActionHandler('play', () => audioPlayer.play());
-		navigator.mediaSession.setActionHandler('pause', () => audioPlayer.pause());
-		navigator.mediaSession.setActionHandler('nexttrack', () => playNextSong());
-		
-		// 「前の曲へ(previoustrack)」ボタンの動作を「5秒戻し」に割り当てる
-		navigator.mediaSession.setActionHandler('previoustrack', () => {
-			audioPlayer.currentTime = Math.max(audioPlayer.currentTime - 5, 0);
-		});
-
-		// 再生バーのスライド（シーク）操作のハンドラ
-		try {
-			navigator.mediaSession.setActionHandler('seekto', (details) => {
-				if (details.fastSeek && 'fastSeek' in audioPlayer) {
-					audioPlayer.fastSeek(details.seekTime);
-				} else {
-					audioPlayer.currentTime = details.seekTime;
-				}
-			});
-		} catch (error) {
-			console.log('seekto action is not supported.');
-		}
-	}
-}
-
-
-// =================================================================
-// UI Feedback Functions
-// =================================================================
-function showLoading(message) {
-	loadingOverlay.querySelector('div').textContent = message;
-	loadingOverlay.style.display = 'flex';
-}
-function updateLoadingMessage(message) {
-	loadingOverlay.querySelector('div').textContent = message;
-}
-function hideLoading() {
-	loadingOverlay.style.display = 'none';
 }
 
 
 // =================================================================
 // Helper Functions
-// ヘルパー関数
 // =================================================================
+/** 画面を切り替える関数 */
+function switchScreen(screenName) {
+    [playerScreen, listScreen, settingsScreen].forEach(s => s.classList.remove('active'));
+    [navPlayerButton, navListButton, navSettingsButton].forEach(b => b.classList.remove('active'));
+    if (screenName === 'player') {
+        playerScreen.classList.add('active');
+        navPlayerButton.classList.add('active');
+    } else if (screenName === 'list') {
+        listScreen.classList.add('active');
+        navListButton.classList.add('active');
+    } else if (screenName === 'settings') {
+        settingsScreen.classList.add('active');
+        navSettingsButton.classList.add('active');
+    }
+}
 
-/** ツリービュー全体をDOMに描画し、トップレベルフォルダを開く */
-function renderTreeView(pathsToKeepOpen = null) {
-    treeViewContainer.innerHTML = ''; 
-    const treeViewHTML = createTreeViewHTML(fileTree);
-    treeViewContainer.appendChild(treeViewHTML);
-
-    if (pathsToKeepOpen) {
-        // 指定されたパスのフォルダを開く
-        document.querySelectorAll('.folder-item').forEach(folder => {
-            if (pathsToKeepOpen.has(folder.dataset.folderPath)) {
-                folder.classList.add('open');
-            }
-        });
+/** 設定画面内のビューを切り替える関数 */
+function switchSettingsView(viewName) {
+    if (viewName === 'detail') {
+        mainSettingsView.classList.remove('active');
+        detailSettingsView.classList.add('active');
     } else {
-        // デフォルトの動作：トップレベルのフォルダだけを開く
-        const topLevelFolders = treeViewContainer.querySelectorAll(':scope > ul > li.folder-item');
-        topLevelFolders.forEach(folder => {
-            folder.classList.add('open');
+        detailSettingsView.classList.remove('active');
+        mainSettingsView.classList.add('active');
+    }
+}
+
+/** ツリービュー全体をDOMに描画する */
+function renderTreeView(pathsToKeepOpen = null) {
+    const treeHTML = createTreeViewHTML(fileTree);
+    listTreeViewContainer.innerHTML = '';
+    listTreeViewContainer.appendChild(treeHTML.cloneNode(true));
+    settingsTreeViewContainer.innerHTML = '';
+    settingsTreeViewContainer.appendChild(treeHTML);
+
+    const applyOpenState = (container) => {
+        if (pathsToKeepOpen) {
+            container.querySelectorAll('.folder-item').forEach(folder => {
+                if (pathsToKeepOpen.has(folder.dataset.folderPath)) {
+                    folder.classList.add('open');
+                }
+            });
+        } else {
+            container.querySelectorAll(':scope > ul > li.folder-item').forEach(folder => {
+                folder.classList.add('open');
+            });
+        }
+    };
+    applyOpenState(listTreeViewContainer);
+    applyOpenState(settingsTreeViewContainer);
+}
+
+/** プロパティパネルを表示・更新する */
+function showPropertiesPanel() {
+    if (!selectedItemPath || !detailSettingsView.classList.contains('active')) {
+        propertiesPanel.style.display = 'none';
+        return;
+    }
+    
+    const props = songProperties[selectedItemPath] || {};
+    propSortOrder.value = props.sortOrder || 0;
+    
+    if (isSelectedItemFolder) {
+        propItemName.textContent = selectedItemPath.split('/').pop();
+        propDisplayName.value = props.name || '';
+        propIsGame.checked = props.isGame || false;
+        songSpecificSettings.style.display = 'none';
+        folderSpecificSettings.style.display = 'block';
+    } else {
+        const file = findFileByPath(selectedItemPath);
+        if (!file) return;
+        propItemName.textContent = file.name;
+        propDisplayName.value = props.name || '';
+        propMultiplier.value = (typeof props.multiplier === 'number') ? props.multiplier : 1.0;
+        songSpecificSettings.style.display = 'block';
+        folderSpecificSettings.style.display = 'none';
+    }
+    propertiesPanel.style.display = 'block';
+}
+
+/** 選択されたアイテムのスタイルを更新する */
+function updateSelectionStyle(selectedElement) {
+    document.querySelectorAll('.selected-item').forEach(el => el.classList.remove('selected-item'));
+    if (selectedElement) {
+        const path = selectedElement.dataset.folderPath || selectedElement.dataset.filePath;
+        document.querySelectorAll(`[data-folder-path="${path}"], [data-file-path="${path}"]`).forEach(el => {
+            el.classList.add('selected-item');
         });
     }
 }
 
-/** ツリービューのHTMLリストを再帰的に構築し、トグルや表示名を設定する */
+async function loadDataFromDB() {
+	try {
+		showLoading('ライブラリを読み込み中...');
+		const songData = await getAllSongs();
+		const props = await getProperties('songProperties');
+		const recent = await getProperties('recentlyPlayed');
+		if (songData && songData.length > 0) {
+			const restoredFiles = songData.map(item => {
+				try {
+					Object.defineProperty(item.file, 'webkitRelativePath', {
+						value: item.path,
+						writable: true,
+						configurable: true
+					});
+				} catch (e) {
+					item.file.webkitRelativePath = item.path;
+				}
+				return item.file;
+			});
+			libraryFiles = restoredFiles;
+			songProperties = props || {};
+			recentlyPlayed = recent || [];
+			if (libraryFiles.length > 0) {
+				const rootFolderName = libraryFiles[0].webkitRelativePath.split('/')[0];
+				activeRandomFolderPath = rootFolderName;
+			}
+			fileTree = buildFileTree(libraryFiles);
+			renderTreeView();
+		}
+	} catch (error) {
+		console.error('Failed to load data from DB:', error);
+	} finally {
+		hideLoading();
+	}
+}
+
 function createTreeViewHTML(node, currentPath = '') {
     const ul = document.createElement('ul');
     const items = Object.keys(node).map(key => {
@@ -511,9 +533,8 @@ function createTreeViewHTML(node, currentPath = '') {
     return ul;
 }
 
-/** 指定されたフォルダパスに基づいて現在のプレイリストを取得する */
 function getPlaylist(folderPath) {
-    const targetPath = folderPath || selectedFolderPath;
+    const targetPath = folderPath || activeRandomFolderPath;
     if (targetPath) {
         const pathParts = targetPath.split('/');
         let targetNode = fileTree;
@@ -526,7 +547,6 @@ function getPlaylist(folderPath) {
     }
 }
 
-/** 指定されたノード以下の全てのFileオブジェクトを再帰的に収集する */
 function getFilesFromNode(node) {
     let files = [];
     for (const key in node) {
@@ -540,7 +560,6 @@ function getFilesFromNode(node) {
     return files;
 }
 
-/** ファイルのフルパスからFileオブジェクトを見つける */
 function findFileByPath(filePath) {
     for (const file of libraryFiles) {
         if (file.webkitRelativePath === filePath) {
@@ -550,7 +569,6 @@ function findFileByPath(filePath) {
     return null;
 }
 
-/** フラットなFileListから階層的なfileTreeオブジェクトを構築する */
 function buildFileTree(files) {
     const tree = {};
     for (const file of files) {
@@ -570,4 +588,15 @@ function buildFileTree(files) {
         }
     }
     return tree;
+}
+
+function showLoading(message) {
+	loadingOverlay.querySelector('div').textContent = message;
+	loadingOverlay.style.display = 'flex';
+}
+function updateLoadingMessage(message) {
+	loadingOverlay.querySelector('div').textContent = message;
+}
+function hideLoading() {
+	loadingOverlay.style.display = 'none';
 }
