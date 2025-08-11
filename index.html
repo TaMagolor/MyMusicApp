@@ -3,17 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <!-- 画面上部の背景色を黒にするための設定 -->
     <meta name="theme-color" content="#000000">
     <title>MyMusicApp</title>
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
 </head>
 <body>
-    <!-- メインの画面コンテンツエリア -->
     <main id="app-container">
 
-        <!-- ▼▼▼ 1. プレイヤー画面 ▼▼▼ -->
         <div id="player-screen" class="screen active">
             <div class="player-content">
                 <div id="player-folder-name-container" class="player-info-text">
@@ -26,22 +23,30 @@
                 <audio id="audioPlayer" controls></audio>
                 <div id="player-song-name" class="player-info-text song-title">曲名</div>
                 <div id="player-game-name" class="player-info-text game-title">ゲーム名</div>
+                
+                <div id="durability-mode-container">
+                    <button id="durability-mode-button">耐久モード: ループなし</button>
+                    <div id="durability-options" class="hidden">
+                        <button data-duration="0">ループなし</button>
+                        <button data-duration="300">5分</button>
+                        <button data-duration="600">10分</button>
+                        <button data-duration="900">15分</button>
+                        <button data-duration="1800">30分</button>
+                        <button data-duration="3600">60分</button>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <!-- ▼▼▼ 2. 一覧画面 ▼▼▼ -->
         <div id="list-screen" class="screen">
             <div id="list-tree-view-container" class="scrollable-content tree-view">
-                <!-- 曲リストがここに表示される -->
             </div>
             <div class="fixed-bottom-button-container">
                 <button id="list-random-button">ランダム再生 / 再生予約</button>
             </div>
         </div>
 
-        <!-- ▼▼▼ 3. 全体設定画面 ▼▼▼ -->
         <div id="settings-screen" class="screen">
-            <!-- 3-a. 初期画面 -->
             <div id="main-settings" class="settings-view active">
                 <div class="settings-button-group">
                     <div id="versionDisplay"></div>
@@ -53,10 +58,8 @@
                     <button id="goto-detail-settings-button" class="settings-button detail-button">詳細設定</button>
                 </div>
             </div>
-            <!-- 3-b. 詳細設定画面 -->
             <div id="detail-settings" class="settings-view">
                 <div id="settings-tree-view-container" class="scrollable-content split-top tree-view">
-                    <!-- 詳細設定用リストがここに表示される -->
                 </div>
                 <div id="properties-panel" class="split-bottom">
                     <button id="back-to-main-settings-button">戻る</button>
@@ -66,7 +69,27 @@
                     <div class="prop-details"><label>並び替え順: <input type="number" id="prop-sort-order" step="0.01" value="0"></label></div>
                     <div id="song-specific-settings">
                         <div class="prop-details"><label>抽選倍率: <input type="number" id="prop-lottery-multiplier" min="0" step="0.0001" value="1.0"></label></div>
-                    </div>
+                        
+                        <div id="loop-feature-container">
+                            <div class="prop-details">
+                                <label><input type="checkbox" id="prop-loop-compatible"> ループに対応</label>
+                            </div>
+                            <div id="loop-settings-panel" class="hidden">
+                                <div class="prop-details">
+                                    <label>ループ開始時間: <input type="text" id="prop-loop-start" placeholder="mm:ss.sss"></label>
+                                </div>
+                                <div class="prop-details">
+                                    <label>ループ終了時間: <input type="text" id="prop-loop-end" placeholder="mm:ss.sss"></label>
+                                </div>
+                                <div class="prop-details readonly">
+                                    <span>自動計算(開始): <span id="prop-loop-start-auto">--:--.---</span></span>
+                                </div>
+                                <div class="prop-details readonly">
+                                    <span>自動計算(終了): <span id="prop-loop-end-auto">--:--.---</span></span>
+                                </div>
+                            </div>
+                        </div>
+                        </div>
                     <div id="folder-specific-settings">
                         <div class="prop-details"><label><input type="checkbox" id="prop-is-game"> Gameフォルダとしてマーク</label></div>
                     </div>
@@ -76,7 +99,6 @@
         </div>
     </main>
 
-    <!-- 画面下部のナビゲーションバー -->
     <nav id="bottom-nav">
         <div class="nav-item"><button id="nav-player" class="nav-button active">プレイヤー</button></div>
         <div class="nav-item"><button id="nav-list" class="nav-button">一覧</button></div>

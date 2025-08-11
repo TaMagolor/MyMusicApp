@@ -27,6 +27,11 @@ button, label.settings-button {
 }
 input[type="file"] { display: none; }
 
+/* 汎用クラス */
+.hidden {
+    display: none !important;
+}
+
 /* アプリ全体のコンテナ */
 #app-container {
     width: 100%;
@@ -59,6 +64,44 @@ input[type="file"] { display: none; }
 .song-title { font-size: 1.2em; font-weight: bold; }
 .game-title { color: #ccc; }
 
+/* ▼▼▼ 耐久モードUIのスタイル ▼▼▼ */
+#durability-mode-container {
+    position: relative;
+    width: 90%;
+    max-width: 400px;
+}
+#durability-mode-button {
+    width: 100%;
+    background-color: #3a3a3c;
+}
+#durability-options {
+    position: absolute;
+    bottom: 110%; /* ボタンの上に表示 */
+    left: 0;
+    right: 0;
+    background-color: #2c2c2e;
+    border-radius: 12px;
+    padding: 8px;
+    box-shadow: 0 -4px 12px rgba(0,0,0,0.4);
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+#durability-options button {
+    width: 100%;
+    text-align: center;
+    background-color: #3a3a3c;
+    border: none;
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 0.9em;
+}
+#durability-options button:hover {
+    background-color: #555;
+}
+/* ▲▲▲ 耐久モードUIのスタイル ▲▲▲ */
+
+
 /* --- 2. 一覧画面 --- */
 .scrollable-content { overflow-y: auto; -webkit-overflow-scrolling: touch; overflow-x: hidden; }
 #list-tree-view-container { height: calc(100% - var(--list-button-height)); padding: 10px; }
@@ -79,6 +122,19 @@ input[type="file"] { display: none; }
 #properties-panel h4 { margin-top: 0; }
 #properties-panel .prop-details { margin: 10px 0; }
 #properties-panel input[type="text"], #properties-panel input[type="number"] { width: 95%; padding: 8px; background-color: #333; border: 1px solid #555; color: #fff; border-radius: 5px; }
+
+/* ▼▼▼ ループ設定UIのスタイル ▼▼▼ */
+#loop-settings-panel {
+    border-left: 3px solid #555;
+    padding-left: 10px;
+    margin-top: 15px;
+}
+.prop-details.readonly span {
+    color: #aaa;
+    font-size: 0.9em;
+}
+/* ▲▲▲ ループ設定UIのスタイル ▲▲▲ */
+
 
 /* --- 共通ツリービューのスタイル --- */
 .tree-view ul { padding-left: 12px; list-style-type: none; }
