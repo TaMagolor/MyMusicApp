@@ -1,17 +1,17 @@
 // =================================================================
 // Application Version
 // =================================================================
-const APP_VERSION = 'v.2.1.2'; // Fix file loading and path handling issue
+const APP_VERSION = 'v.2.1.3'; // Refactor data handling for stability
 
 // =================================================================
 // Environment Check
 // =================================================================
 const isElectron = (typeof require !== 'undefined');
 
+// (HTML Element Acquisitionセクションは変更ありません)
 // =================================================================
 // HTML Element Acquisition
 // =================================================================
-// (変更なし)
 const playerScreen = document.getElementById('player-screen');
 const listScreen = document.getElementById('list-screen');
 const settingsScreen = document.getElementById('settings-screen');
@@ -59,11 +59,10 @@ loadingOverlay.innerHTML = '<div>データを処理中...</div>';
 loadingOverlay.style.display = 'none';
 document.body.appendChild(loadingOverlay);
 
-
+// (Global Variablesセクションは変更ありません)
 // =================================================================
 // Global Variables
 // =================================================================
-// (変更なし)
 let libraryFiles = [];
 let fileTree = {};
 let selectedItemPath = null;
@@ -76,6 +75,7 @@ let durabilityMode = { enabled: false, duration: 0 };
 let currentLoopInfo = null;
 
 
+// (Application Initializationセクションは変更ありません)
 // =================================================================
 // Application Initialization
 // =================================================================
@@ -93,10 +93,10 @@ window.addEventListener('load', async () => {
 });
 
 
+// (Event Listenersセクションは変更ありません)
 // =================================================================
 // Event Listeners
 // =================================================================
-// (変更なし)
 navPlayerButton.addEventListener('click', () => switchScreen('player'));
 navListButton.addEventListener('click', () => switchScreen('list'));
 navSettingsButton.addEventListener('click', () => switchScreen('settings'));
@@ -126,11 +126,16 @@ audioPlayer.addEventListener('timeupdate', () => {
 });
 
 
+// (Event Handler Functionsセクションは変更ありません)
 // =================================================================
 // Event Handler Functions
 // =================================================================
-
 async function handleFileInputChange(event) {
+    // データベースが準備できているか確認するガード句
+    if (!db || !db.songs) {
+        alert('データベースが準備できていません。少し待ってから再度お試しください。');
+        return;
+    }
     const files = Array.from(event.target.files);
     if (files.length === 0) return;
     showLoading(`インポート中: 0 / ${files.length} 曲`);
@@ -214,18 +219,17 @@ async function handleLoopCompatibleChange(event) {
     const isChecked = event.target.checked;
     loopSettingsPanel.classList.toggle('hidden', !isChecked);
     if (isChecked && selectedItemPath) {
-        const fileToAnalyze = findFileByPath(selectedItemPath);
+        // ▼▼▼ 修正 ▼▼▼ findFileByPathはレコード全体を返す
+        const songRecord = findFileByPath(selectedItemPath);
         
-        // ▼▼▼ 修正 ▼▼▼ 'diskPath' プロパティの有無でチェックする
-        if (!fileToAnalyze || !fileToAnalyze.diskPath) {
+        if (!songRecord || !songRecord.diskPath) {
             alert('ファイルの物理パスが見つかりません。Electron環境で正しくファイルが読み込まれているか確認してください。');
             return;
         }
 
         showLoading('ループ区間を自動計算中...');
         try {
-            // ▼▼▼ 修正 ▼▼▼ 'diskPath' をPythonに渡す
-            const { startTime, endTime } = await calculateLoopPoints(fileToAnalyze.diskPath);
+            const { startTime, endTime } = await calculateLoopPoints(songRecord.diskPath);
             propLoopStartAuto.textContent = formatTime(startTime);
             propLoopEndAuto.textContent = formatTime(endTime);
             propLoopStart.value = formatTime(startTime);
@@ -277,7 +281,11 @@ function handleTreeClick(event) {
         if (liElement.matches('.folder-item')) {
             handleFolderSelect(liElement);
         } else if (liElement.matches('.file-item')) {
-            handleSongSelect(liElement);
+            // ▼▼▼ 修正 ▼▼▼ 曲レコードを渡す
+            const songRecord = findFileByPath(liElement.dataset.filePath);
+            if (songRecord) {
+                handleSongSelect(liElement, songRecord);
+            }
         }
     }
 }
@@ -290,9 +298,9 @@ function handleFolderSelect(folderElement) {
     showPropertiesPanel();
 }
 
-function handleSongSelect(songElement) {
-    const filePath = songElement.dataset.filePath;
-    selectedItemPath = filePath;
+// ▼▼▼ 修正 ▼▼▼ songRecordを受け取る
+function handleSongSelect(songElement, songRecord) {
+    selectedItemPath = songRecord.path; // pathはwebkitRelativePath
     isSelectedItemFolder = false;
     updateSelectionStyle(songElement);
     showPropertiesPanel();
@@ -308,25 +316,28 @@ function handleRandomButton() {
         nextSongToPlay = null;
         playNextSong();
     } else {
-        const file = findFileByPath(selectedItemPath);
-        if (file) {
-            nextSongToPlay = file;
+        // ▼▼▼ 修正 ▼▼▼ レコードをnextSongToPlayに設定
+        const songRecord = findFileByPath(selectedItemPath);
+        if (songRecord) {
+            nextSongToPlay = songRecord;
             if (audioPlayer.paused) playNextSong();
         }
     }
 }
 
-async function playSong(file) {
-	if (!file) return;
+// ▼▼▼ 修正 ▼▼▼ 引数をsongRecordに変更
+async function playSong(songRecord) {
+	if (!songRecord) return;
+    const file = songRecord.file; // 実際に再生するのはFileオブジェクト
     currentLoopInfo = null;
-	recentlyPlayed.unshift(file.webkitRelativePath);
+	recentlyPlayed.unshift(songRecord.path);
 	if (recentlyPlayed.length > 200) recentlyPlayed.pop();
 	await saveProperties('recentlyPlayed', recentlyPlayed);
 	
     const objectURL = URL.createObjectURL(file);
 	audioPlayer.src = objectURL;
     audioPlayer.onloadedmetadata = () => {
-        startLoopPlaybackIfNeeded(file, audioPlayer.duration);
+        startLoopPlaybackIfNeeded(songRecord, audioPlayer.duration);
     };
 
 	try {
@@ -334,11 +345,11 @@ async function playSong(file) {
 	} catch (error) {
 		console.error('Playback failed:', error);
 	}
-	const props = songProperties[file.webkitRelativePath] || {};
+	const props = songProperties[songRecord.path] || {};
 	const songDisplayName = (props.name && props.name.trim() !== '') ? props.name : (file.name.substring(0, file.name.lastIndexOf('.')) || file.name);
 	playerSongName.textContent = songDisplayName;
 	let gameName = 'N/A';
-	const pathParts = file.webkitRelativePath.split('/');
+	const pathParts = songRecord.path.split('/');
 	for (let i = pathParts.length - 2; i >= 0; i--) {
 		const parentPath = pathParts.slice(0, i + 1).join('/');
 		const parentProps = songProperties[parentPath] || {};
@@ -380,17 +391,18 @@ async function playSong(file) {
 
 function playNextSong() {
     if (nextSongToPlay) {
-        const props = songProperties[nextSongToPlay.webkitRelativePath] || {};
+        const songRecord = nextSongToPlay; // nextSongToPlay is now a record
+        const props = songProperties[songRecord.path] || {};
         if (durabilityMode.enabled && !props.isLoopCompatible) {
              return;
         }
-        playSong(nextSongToPlay);
+        playSong(songRecord);
         nextSongToPlay = null;
         return;
     }
     if (!activeRandomFolderPath) {
         if (libraryFiles.length > 0) {
-            const rootFolderName = libraryFiles[0].webkitRelativePath.split('/')[0];
+            const rootFolderName = libraryFiles[0].path.split('/')[0];
             activeRandomFolderPath = rootFolderName;
         } else {
             return;
@@ -400,8 +412,8 @@ function playNextSong() {
     if (playlist.length === 0) return;
     
     if (durabilityMode.enabled) {
-        playlist = playlist.filter(file => {
-            const props = songProperties[file.webkitRelativePath] || {};
+        playlist = playlist.filter(record => {
+            const props = songProperties[record.path] || {};
             return props.isLoopCompatible === true;
         });
     }
@@ -415,14 +427,14 @@ function playNextSong() {
     const excludedPaths = recentlyPlayed.slice(0, exclusionCount);
     const weightedList = [];
     let totalWeight = 0;
-    for (const file of playlist) {
-        const filePath = file.webkitRelativePath;
+    for (const record of playlist) {
+        const filePath = record.path;
         const f = excludedPaths.includes(filePath) ? 0 : 1;
         const props = songProperties[filePath] || {};
         const multiplier = (typeof props.multiplier === 'number') ? props.multiplier : 1.0;
         const weight = multiplier * f;
         if (weight > 0) {
-            weightedList.push({ file: file, weight: weight });
+            weightedList.push({ record: record, weight: weight });
             totalWeight += weight;
         }
     }
@@ -432,7 +444,7 @@ function playNextSong() {
         for (const item of weightedList) {
             randomValue -= item.weight;
             if (randomValue <= 0) {
-                songToPlay = item.file;
+                songToPlay = item.record;
                 break;
             }
         }
@@ -450,42 +462,37 @@ function playNextSong() {
 function setDurabilityMode(durationInSeconds) {
     durabilityMode.enabled = durationInSeconds > 0;
     durabilityMode.duration = durationInSeconds;
-
     let buttonText = '耐久モード: ループなし';
     if (durabilityMode.enabled) {
         buttonText = `耐久モード: ${durationInSeconds / 60}分`;
     }
     durabilityModeButton.textContent = buttonText;
     durabilityOptions.classList.add('hidden');
-
     if (!audioPlayer.paused) {
-        const currentFile = findFileByPath(audioPlayer.src);
-        if(currentFile) {
-            startLoopPlaybackIfNeeded(currentFile, audioPlayer.duration);
+        const currentRecord = findFileByPath(playerSongName.textContent, true); // Search by title
+        if(currentRecord) {
+            startLoopPlaybackIfNeeded(currentRecord, audioPlayer.duration);
         }
     }
 }
 
-function startLoopPlaybackIfNeeded(file, totalDuration) {
-    const props = songProperties[file.webkitRelativePath] || {};
+// ▼▼▼ 修正 ▼▼▼ 引数をsongRecordに変更
+function startLoopPlaybackIfNeeded(songRecord, totalDuration) {
+    const props = songProperties[songRecord.path] || {};
     if (durabilityMode.enabled && props.isLoopCompatible) {
         const loopStartTime = props.loopStartTime || props.autoLoopStartTime || 0;
         const loopEndTime = props.loopEndTime || props.autoLoopEndTime || 0;
 
         if (loopEndTime <= loopStartTime || loopEndTime > totalDuration) {
-            console.error("Invalid loop times. Disabling loop for this song.");
             currentLoopInfo = null;
             return;
         }
-
         const introDuration = loopStartTime;
         const loopDuration = loopEndTime - loopStartTime;
         const outroDuration = totalDuration - loopEndTime;
-
         if (loopDuration <= 0) {
              currentLoopInfo = null; return;
         }
-
         const remainingDuration = durabilityMode.duration - introDuration - outroDuration;
         const totalLoops = remainingDuration > 0 ? Math.ceil(remainingDuration / loopDuration) : 0;
         
@@ -495,18 +502,14 @@ function startLoopPlaybackIfNeeded(file, totalDuration) {
             loopStartTime: loopStartTime,
             loopEndTime: loopEndTime,
         };
-        console.log(`Looping enabled for ${file.name}. Total loops: ${totalLoops}`);
-
+        console.log(`Looping enabled for ${songRecord.file.name}. Total loops: ${totalLoops}`);
     } else {
         currentLoopInfo = null;
     }
 }
 
 function handleLooping() {
-    if (!currentLoopInfo || audioPlayer.paused) {
-        return;
-    }
-
+    if (!currentLoopInfo || audioPlayer.paused) return;
     if (currentLoopInfo.loopCount < currentLoopInfo.totalLoops) {
         if (audioPlayer.currentTime >= currentLoopInfo.loopEndTime) {
             currentLoopInfo.loopCount++;
@@ -517,17 +520,13 @@ function handleLooping() {
 }
 
 function calculateLoopPoints(filePath) {
-    if (!isElectron) {
-        return Promise.reject("Python execution is only available in Electron environment.");
-    }
+    if (!isElectron) return Promise.reject("Python execution is only available in Electron.");
     const { spawn } = require('child_process');
     const path = require('path');
-
     return new Promise((resolve, reject) => {
         const scriptPath = path.join(__dirname, 'find_loop.py');
         const pyProcess = spawn('python', [scriptPath, filePath]);
-        let result = '';
-        let errorResult = '';
+        let result = '', errorResult = '';
         pyProcess.stdout.on('data', (data) => { result += data.toString(); });
         pyProcess.stderr.on('data', (data) => { errorResult += data.toString(); });
         pyProcess.on('error', (error) => { reject(`プロセス開始エラー: ${error.message}`); });
@@ -536,11 +535,8 @@ function calculateLoopPoints(filePath) {
             if (code !== 0) return reject(`Pythonスクリプトがエラーコード ${code} で終了しました。`);
             try {
                 const jsonResult = JSON.parse(result);
-                if (jsonResult.status === 'success') {
-                    resolve(jsonResult);
-                } else {
-                    reject(jsonResult.message);
-                }
+                if (jsonResult.status === 'success') resolve(jsonResult);
+                else reject(jsonResult.message);
             } catch (e) {
                 reject(`PythonからのJSON出力の解析に失敗しました: ${e.message}`);
             }
@@ -583,7 +579,6 @@ function renderTreeView(pathsToKeepOpen = null) {
     listTreeViewContainer.appendChild(treeHTML.cloneNode(true));
     settingsTreeViewContainer.innerHTML = '';
     settingsTreeViewContainer.appendChild(treeHTML);
-
     const applyOpenState = (container) => {
         if (pathsToKeepOpen) {
             container.querySelectorAll('.folder-item').forEach(folder => {
@@ -600,25 +595,24 @@ function renderTreeView(pathsToKeepOpen = null) {
 function createTreeViewHTML(node, currentPath = '') {
     const ul = document.createElement('ul');
     const items = Object.keys(node).map(key => {
-        const path = currentPath ? `${currentPath}/${key}` : key;
+        const item = node[key];
+        // ▼▼▼ 修正 ▼▼▼ itemはレコードまたはフォルダノード
+        const path = item.path || (currentPath ? `${currentPath}/${key}` : key);
         const props = songProperties[path] || {};
-        return { key: key, sortOrder: props.sortOrder || 0, isFolder: !(node[key] instanceof File) };
+        return { key: key, sortOrder: props.sortOrder || 0, isFolder: !item.file };
     });
     items.sort((a, b) => a.sortOrder - b.sortOrder);
     for (const item of items) {
         const key = item.key;
         const value = node[key];
-        const newPath = currentPath ? `${currentPath}/${key}` : key;
+        const newPath = value.path || (currentPath ? `${currentPath}/${key}` : key);
         const li = document.createElement('li');
         const props = songProperties[newPath] || {};
-        let displayName = (props.name && props.name.trim() !== '') ? props.name : (item.isFolder ? key : (key.substring(0, key.lastIndexOf('.')) || key));
-        
+        let displayName = (props.name && props.name.trim() !== '') ? props.name : (item.isFolder ? key : (value.file.name.substring(0, value.file.name.lastIndexOf('.')) || key));
         const itemContainer = document.createElement('div');
         itemContainer.className = 'list-item-container';
-        
         const itemContent = document.createElement('span');
         itemContent.className = 'item-content';
-        
         if (item.isFolder) {
             li.classList.add('folder-item');
             li.dataset.folderPath = newPath;
@@ -636,7 +630,7 @@ function createTreeViewHTML(node, currentPath = '') {
             li.appendChild(subUl);
         } else {
             li.classList.add('file-item');
-            li.dataset.filePath = value.webkitRelativePath;
+            li.dataset.filePath = value.path;
             itemContent.textContent = `🎵 ${displayName}`;
             itemContainer.appendChild(itemContent);
             li.appendChild(itemContainer);
@@ -660,9 +654,9 @@ function showPropertiesPanel() {
         songSpecificSettings.style.display = 'none';
         folderSpecificSettings.style.display = 'block';
     } else {
-        const file = findFileByPath(selectedItemPath);
-        if (!file) return;
-        propItemName.textContent = file.name;
+        const songRecord = findFileByPath(selectedItemPath);
+        if (!songRecord) return;
+        propItemName.textContent = songRecord.file.name;
         propDisplayName.value = props.name || '';
         propMultiplier.value = (typeof props.multiplier === 'number') ? props.multiplier : 1.0;
         
@@ -674,7 +668,6 @@ function showPropertiesPanel() {
             propLoopStartAuto.textContent = formatTime(props.autoLoopStartTime || 0);
             propLoopEndAuto.textContent = formatTime(props.autoLoopEndTime || 0);
         }
-
         songSpecificSettings.style.display = 'block';
         folderSpecificSettings.style.display = 'none';
     }
@@ -691,6 +684,7 @@ function updateSelectionStyle(selectedElement) {
     }
 }
 
+// ▼▼▼ 修正 ▼▼▼ libraryFilesにはDBから取得したレコードをそのまま格納する
 async function loadDataFromDB() {
     try {
         showLoading('ライブラリを読み込み中...');
@@ -699,42 +693,16 @@ async function loadDataFromDB() {
         const recent = await getProperties('recentlyPlayed');
         
         if (songData && songData.length > 0) {
-            // ▼▼▼ 修正 ▼▼▼ FileオブジェクトにdiskPathを安全に再設定する
-            libraryFiles = songData.map(item => {
-                const file = item.file;
-                try {
-                    // webkitRelativePathはすべての環境で必要
-                    Object.defineProperty(file, 'webkitRelativePath', {
-                        value: item.path,
-                        writable: true,
-                        configurable: true
-                    });
-                    // diskPathはElectron環境でのみ必要
-                    if (isElectron && item.diskPath) {
-                        Object.defineProperty(file, 'diskPath', {
-                            value: item.diskPath,
-                            writable: true,
-                            configurable: true
-                        });
-                    }
-                } catch (e) {
-                    // フォールバック
-                    file.webkitRelativePath = item.path;
-                    if (isElectron) file.diskPath = item.diskPath;
-                }
-                return file;
-            });
-
+            libraryFiles = songData; // レコード全体を格納
             songProperties = props || {};
             recentlyPlayed = recent || [];
             if (libraryFiles.length > 0) {
-                const rootFolderName = libraryFiles[0].webkitRelativePath.split('/')[0];
+                const rootFolderName = libraryFiles[0].path.split('/')[0];
                 activeRandomFolderPath = rootFolderName;
             }
             fileTree = buildFileTree(libraryFiles);
             renderTreeView();
         } else {
-            // ▼▼▼ 追加 ▼▼▼ データがない場合は空にする
             libraryFiles = [];
             fileTree = {};
             renderTreeView();
@@ -747,6 +715,7 @@ async function loadDataFromDB() {
     }
 }
 
+// ▼▼▼ 修正 ▼▼▼ libraryFilesはレコードの配列
 function getPlaylist(folderPath) {
     const targetPath = folderPath || activeRandomFolderPath;
     if (targetPath) {
@@ -761,11 +730,12 @@ function getPlaylist(folderPath) {
     }
 }
 
+// ▼▼▼ 修正 ▼▼▼ レコードを返す
 function getFilesFromNode(node) {
     let files = [];
     for (const key in node) {
         const value = node[key];
-        if (value instanceof File) {
+        if (value.file instanceof File) { // レコードかどうかを判定
             files.push(value);
         } else {
             files = files.concat(getFilesFromNode(value));
@@ -774,23 +744,22 @@ function getFilesFromNode(node) {
     return files;
 }
 
+// ▼▼▼ 修正 ▼▼▼ レコードを返す
 function findFileByPath(filePath) {
-    for (const file of libraryFiles) {
-        if (file.webkitRelativePath === filePath) {
-            return file;
+    for (const record of libraryFiles) {
+        if (record.path === filePath) {
+            return record;
         }
-        // audioPlayer.srcはblob URLになるため、直接比較はできない
-        // この関数は主にwebkitRelativePathでの検索に使われる
     }
     return null;
 }
 
-
-function buildFileTree(files) {
+// ▼▼▼ 修正 ▼▼▼ レコードの配列を元にツリーを構築
+function buildFileTree(records) {
     const tree = {};
-    for (const file of files) {
-        if (!file.webkitRelativePath) continue;
-        const pathParts = file.webkitRelativePath.split('/');
+    for (const record of records) {
+        if (!record.path) continue;
+        const pathParts = record.path.split('/');
         let currentLevel = tree;
         for (let i = 0; i < pathParts.length; i++) {
             const part = pathParts[i];
@@ -800,7 +769,7 @@ function buildFileTree(files) {
                 }
                 currentLevel = currentLevel[part];
             } else {
-                currentLevel[part] = file;
+                currentLevel[part] = record;
             }
         }
     }
@@ -832,15 +801,4 @@ function timeStringToSeconds(timeString) {
     if (!parts) return 0;
     const [, minutes, seconds, milliseconds] = parts.map(Number);
     return minutes * 60 + seconds + milliseconds / 1000;
-}
-
-// ▼▼▼ 修正 ▼▼▼
-// Electron環境でのみ存在する `file.path` (物理パス) を `diskPath` として保存する
-async function saveSong(file) {
-    const songRecord = {
-        path: file.webkitRelativePath,
-        diskPath: isElectron ? file.path : null,
-        file: file,
-    };
-    await db.songs.put(songRecord);
 }
