@@ -1,7 +1,7 @@
 // =================================================================
 // Application Version
 // =================================================================
-const APP_VERSION = 'v.2.1.3'; // Refactor data handling for stability
+const APP_VERSION = 'v.2.1.4'; // Refactor data handling for stability
 
 // =================================================================
 // Environment Check
@@ -141,7 +141,17 @@ async function handleFileInputChange(event) {
     showLoading(`インポート中: 0 / ${files.length} 曲`);
     try {
         for (let i = 0; i < files.length; i++) {
-            await saveSong(files[i]);
+            const file = files[i];
+            
+            const songRecord = {
+                path: file.webkitRelativePath,
+                // isElectron と file.path を使って直接diskPathを定義
+                diskPath: isElectron ? file.path : null,
+                file: file,
+            };
+            console.log('Saving to DB:', songRecord); // デバッグ用に残しておきます
+            await db.songs.put(songRecord);
+            
             if ((i + 1) % 10 === 0 || i === files.length - 1) {
                 updateLoadingMessage(`インポート中: ${i + 1} / ${files.length} 曲`);
             }
