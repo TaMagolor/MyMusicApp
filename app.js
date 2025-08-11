@@ -1,14 +1,12 @@
 // =================================================================
 // Application Version
 // =================================================================
-const APP_VERSION = 'v.2.1.0'; // Cross-platform support
+const APP_VERSION = 'v.2.1.1'; // Fix file loading and path handling issue
 
 // =================================================================
 // Environment Check
 // =================================================================
-// Electron(Node.js)環境で実行されているかを判定
 const isElectron = (typeof require !== 'undefined');
-
 
 // =================================================================
 // HTML Element Acquisition
@@ -45,6 +43,7 @@ const propMultiplier = document.getElementById('prop-lottery-multiplier');
 const folderSpecificSettings = document.getElementById('folder-specific-settings');
 const propIsGame = document.getElementById('prop-is-game');
 const savePropertiesButton = document.getElementById('save-properties-button');
+const loopFeatureContainer = document.getElementById('loop-feature-container');
 const propLoopCompatible = document.getElementById('prop-loop-compatible');
 const loopSettingsPanel = document.getElementById('loop-settings-panel');
 const propLoopStart = document.getElementById('prop-loop-start');
@@ -53,8 +52,6 @@ const propLoopStartAuto = document.getElementById('prop-loop-start-auto');
 const propLoopEndAuto = document.getElementById('prop-loop-end-auto');
 const audioPlayer = document.getElementById('audioPlayer');
 const versionDisplay = document.getElementById('versionDisplay');
-// ▼▼▼ 追加 ▼▼▼
-const loopFeatureContainer = document.getElementById('loop-feature-container');
 
 const loadingOverlay = document.createElement('div');
 loadingOverlay.id = 'loading-overlay';
@@ -87,8 +84,6 @@ window.addEventListener('load', async () => {
 	if (versionDisplay) {
 		versionDisplay.textContent = APP_VERSION;
 	}
-    // ▼▼▼ 追加 ▼▼▼
-    // ブラウザ環境の場合、Electron専用のUIを非表示にする
     if (!isElectron) {
         if (loopFeatureContainer) {
             loopFeatureContainer.style.display = 'none';
@@ -101,8 +96,6 @@ window.addEventListener('load', async () => {
 // =================================================================
 // Event Listeners
 // =================================================================
-// (propLoopCompatibleのイベントリスナーはElectron環境でのみ意味を持つが、
-// UIが非表示になるのでそのままでも問題ない)
 // (変更なし)
 navPlayerButton.addEventListener('click', () => switchScreen('player'));
 navListButton.addEventListener('click', () => switchScreen('list'));
@@ -136,7 +129,7 @@ audioPlayer.addEventListener('timeupdate', () => {
 // =================================================================
 // Event Handler Functions
 // =================================================================
-// (変更なし)
+
 async function handleFileInputChange(event) {
     const files = Array.from(event.target.files);
     if (files.length === 0) return;
@@ -151,6 +144,7 @@ async function handleFileInputChange(event) {
         await loadDataFromDB();
     } catch (error) {
         console.error('Error during import:', error);
+        alert(`ファイルのインポート中にエラーが発生しました: ${error.message}`);
     } finally {
         hideLoading();
     }
@@ -166,7 +160,7 @@ async function handleSaveProperties() {
 	} else {
 		const parsedMultiplier = parseFloat(propMultiplier.value);
 		currentProps.multiplier = !isNaN(parsedMultiplier) ? parsedMultiplier : 1.0;
-        if (isElectron) { // Electron環境でのみループ設定を保存
+        if (isElectron) {
             currentProps.isLoopCompatible = propLoopCompatible.checked;
             if (currentProps.isLoopCompatible) {
                 currentProps.loopStartTime = timeStringToSeconds(propLoopStart.value);
@@ -216,22 +210,22 @@ function handleImport(event) {
 }
 
 async function handleLoopCompatibleChange(event) {
-    // この関数はElectron環境でのみ意味を持つ
     if (!isElectron) return;
-
     const isChecked = event.target.checked;
     loopSettingsPanel.classList.toggle('hidden', !isChecked);
     if (isChecked && selectedItemPath) {
         const fileToAnalyze = findFileByPath(selectedItemPath);
-        // Electronではfile.pathに物理パスが格納されている
-        if (!fileToAnalyze || !fileToAnalyze.path) {
-            alert('ファイルの物理パスが見つかりません。');
+        
+        // ▼▼▼ 修正 ▼▼▼ 'diskPath' プロパティの有無でチェックする
+        if (!fileToAnalyze || !fileToAnalyze.diskPath) {
+            alert('ファイルの物理パスが見つかりません。Electron環境で正しくファイルが読み込まれているか確認してください。');
             return;
         }
 
         showLoading('ループ区間を自動計算中...');
         try {
-            const { startTime, endTime } = await calculateLoopPoints(fileToAnalyze.path);
+            // ▼▼▼ 修正 ▼▼▼ 'diskPath' をPythonに渡す
+            const { startTime, endTime } = await calculateLoopPoints(fileToAnalyze.diskPath);
             propLoopStartAuto.textContent = formatTime(startTime);
             propLoopEndAuto.textContent = formatTime(endTime);
             propLoopStart.value = formatTime(startTime);
@@ -241,7 +235,6 @@ async function handleLoopCompatibleChange(event) {
             props.autoLoopStartTime = startTime;
             props.autoLoopEndTime = endTime;
             songProperties[selectedItemPath] = props;
-
         } catch (error) {
             console.error("Loop calculation failed:", error);
             alert(`ループ区間の計算に失敗しました:\n${error}`);
@@ -253,7 +246,6 @@ async function handleLoopCompatibleChange(event) {
     }
 }
 
-// (他のイベントハンドラは変更なし)
 function updateMediaPosition() {
     if ('mediaSession' in navigator && navigator.mediaSession.metadata) {
         navigator.mediaSession.setPositionState({
@@ -273,7 +265,6 @@ function handleSongEnd() {
 // =================================================================
 // Core Functions
 // =================================================================
-// (playSong, playNextSong, handleRandomButton, handleSongSelect, handleFolderSelect, handleTreeClickは変更なし)
 function handleTreeClick(event) {
     const target = event.target;
     const liElement = target.closest('li');
@@ -452,10 +443,10 @@ function playNextSong() {
     playSong(songToPlay);
 }
 
+
 // =================================================================
 // Durability Mode & Looping Functions
 // =================================================================
-// (変更なし)
 function setDurabilityMode(durationInSeconds) {
     durabilityMode.enabled = durationInSeconds > 0;
     durabilityMode.duration = durationInSeconds;
@@ -526,18 +517,17 @@ function handleLooping() {
 }
 
 function calculateLoopPoints(filePath) {
-    // この関数はElectron環境でのみ呼び出される
-    // Node.jsのモジュールをここで読み込む
+    if (!isElectron) {
+        return Promise.reject("Python execution is only available in Electron environment.");
+    }
     const { spawn } = require('child_process');
     const path = require('path');
 
     return new Promise((resolve, reject) => {
         const scriptPath = path.join(__dirname, 'find_loop.py');
         const pyProcess = spawn('python', [scriptPath, filePath]);
-
         let result = '';
         let errorResult = '';
-
         pyProcess.stdout.on('data', (data) => { result += data.toString(); });
         pyProcess.stderr.on('data', (data) => { errorResult += data.toString(); });
         pyProcess.on('error', (error) => { reject(`プロセス開始エラー: ${error.message}`); });
@@ -562,7 +552,6 @@ function calculateLoopPoints(filePath) {
 // =================================================================
 // Helper Functions
 // =================================================================
-// (変更なし)
 function switchScreen(screenName) {
     [playerScreen, listScreen, settingsScreen].forEach(s => s.classList.remove('active'));
     [navPlayerButton, navListButton, navSettingsButton].forEach(b => b.classList.remove('active'));
@@ -703,36 +692,59 @@ function updateSelectionStyle(selectedElement) {
 }
 
 async function loadDataFromDB() {
-	try {
-		showLoading('ライブラリを読み込み中...');
-		const songData = await getAllSongs();
-		const props = await getProperties('songProperties');
-		const recent = await getProperties('recentlyPlayed');
-		if (songData && songData.length > 0) {
-			const restoredFiles = songData.map(item => {
-                const fileWithPaths = item.file;
-                fileWithPaths.webkitRelativePath = item.path;
-                // Electron環境でのみ物理パスを格納
-                if (isElectron) {
-                    fileWithPaths.path = item.diskPath;
+    try {
+        showLoading('ライブラリを読み込み中...');
+        const songData = await getAllSongs();
+        const props = await getProperties('songProperties');
+        const recent = await getProperties('recentlyPlayed');
+        
+        if (songData && songData.length > 0) {
+            // ▼▼▼ 修正 ▼▼▼ FileオブジェクトにdiskPathを安全に再設定する
+            libraryFiles = songData.map(item => {
+                const file = item.file;
+                try {
+                    // webkitRelativePathはすべての環境で必要
+                    Object.defineProperty(file, 'webkitRelativePath', {
+                        value: item.path,
+                        writable: true,
+                        configurable: true
+                    });
+                    // diskPathはElectron環境でのみ必要
+                    if (isElectron && item.diskPath) {
+                        Object.defineProperty(file, 'diskPath', {
+                            value: item.diskPath,
+                            writable: true,
+                            configurable: true
+                        });
+                    }
+                } catch (e) {
+                    // フォールバック
+                    file.webkitRelativePath = item.path;
+                    if (isElectron) file.diskPath = item.diskPath;
                 }
-				return fileWithPaths;
-			});
-			libraryFiles = restoredFiles;
-			songProperties = props || {};
-			recentlyPlayed = recent || [];
-			if (libraryFiles.length > 0) {
-				const rootFolderName = libraryFiles[0].webkitRelativePath.split('/')[0];
-				activeRandomFolderPath = rootFolderName;
-			}
-			fileTree = buildFileTree(libraryFiles);
-			renderTreeView();
-		}
-	} catch (error) {
-		console.error('Failed to load data from DB:', error);
-	} finally {
-		hideLoading();
-	}
+                return file;
+            });
+
+            songProperties = props || {};
+            recentlyPlayed = recent || [];
+            if (libraryFiles.length > 0) {
+                const rootFolderName = libraryFiles[0].webkitRelativePath.split('/')[0];
+                activeRandomFolderPath = rootFolderName;
+            }
+            fileTree = buildFileTree(libraryFiles);
+            renderTreeView();
+        } else {
+            // ▼▼▼ 追加 ▼▼▼ データがない場合は空にする
+            libraryFiles = [];
+            fileTree = {};
+            renderTreeView();
+        }
+    } catch (error) {
+        console.error('Failed to load data from DB:', error);
+        alert(`データベースの読み込みに失敗しました: ${error.message}`);
+    } finally {
+        hideLoading();
+    }
 }
 
 function getPlaylist(folderPath) {
@@ -767,9 +779,8 @@ function findFileByPath(filePath) {
         if (file.webkitRelativePath === filePath) {
             return file;
         }
-        if (audioPlayer.src.startsWith('blob:') && audioPlayer.src === URL.createObjectURL(file)) {
-            return file;
-        }
+        // audioPlayer.srcはblob URLになるため、直接比較はできない
+        // この関数は主にwebkitRelativePathでの検索に使われる
     }
     return null;
 }
@@ -823,12 +834,12 @@ function timeStringToSeconds(timeString) {
     return minutes * 60 + seconds + milliseconds / 1000;
 }
 
-// ▼▼▼ 変更 ▼▼▼
-// データベースに保存する際に、Electron環境であれば物理パスも保存する
+// ▼▼▼ 修正 ▼▼▼
+// Electron環境でのみ存在する `file.path` (物理パス) を `diskPath` として保存する
 async function saveSong(file) {
     const songRecord = {
         path: file.webkitRelativePath,
-        diskPath: isElectron ? file.path : null, // Electronでのみ物理パスを保存
+        diskPath: isElectron ? file.path : null,
         file: file,
     };
     await db.songs.put(songRecord);
