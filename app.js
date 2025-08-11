@@ -1,7 +1,7 @@
 // =================================================================
 // Application Version
 // =================================================================
-const APP_VERSION = 'v.2.1.1'; // Fix file loading and path handling issue
+const APP_VERSION = 'v.2.1.2'; // Fix file loading and path handling issue
 
 // =================================================================
 // Environment Check
