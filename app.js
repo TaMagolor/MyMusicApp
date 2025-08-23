@@ -1,7 +1,7 @@
 // =================================================================
 // Application Version
 // =================================================================
-const APP_VERSION = 'v.3.0.0'; // Added Loop Time Lock feature
+const APP_VERSION = 'v.3.2.0'; // Added Crossfade for Durability Mode
 
 // =================================================================
 // HTML Element Acquisition
@@ -67,7 +67,20 @@ let songProperties = {};
 let nextSongToPlay = null;
 let activeRandomFolderPath = null;
 let durabilityMode = { enabled: false, duration: 0 };
-let currentLoopInfo = null; // timeupdateによるループ制御は廃止
+let currentLoopInfo = null;
+
+// =================================================================
+// Crossfade Audio System Variables
+// =================================================================
+let audioContext;
+let crossfadePlayer; // The second audio element for crossfading
+let sourceMain, sourceCrossfade;
+let gainMain, gainCrossfade;
+let activePlayer, standbyPlayer;
+let activeGain, standbyGain;
+let loopCheckInterval = null;
+let isCrossfading = false;
+const CROSSFADE_DURATION = 1.0; // 1 second crossfade duration
 
 // =================================================================
 // Application Initialization
@@ -77,6 +90,7 @@ window.addEventListener('load', async () => {
 	if (versionDisplay) {
 		versionDisplay.textContent = APP_VERSION;
 	}
+    initializeAudioSystem(); // Initialize the audio system for crossfading
 	await loadDataFromDB();
 });
 
@@ -105,10 +119,7 @@ savePropertiesButton.addEventListener('click', handleSaveProperties);
 exportButton.addEventListener('click', handleExport);
 importInput.addEventListener('change', handleImport);
 audioPlayer.addEventListener('ended', handleSongEnd);
-audioPlayer.addEventListener('timeupdate', () => {
-    updateMediaPosition();
-    handleLooping();
-});
+audioPlayer.addEventListener('timeupdate', updateMediaPosition); // Loop handling is now separate
 propLoopCompatible.addEventListener('change', handleLoopCompatibleChange);
 
 // =================================================================
@@ -161,7 +172,6 @@ async function handleSaveProperties() {
             currentProps.loopStartTime = timeStringToSeconds(propLoopStart.value);
             currentProps.loopEndTime = timeStringToSeconds(propLoopEnd.value);
         } else {
-            // ループOFFなら関連プロパティを削除
             delete currentProps.isLoopTimeLocked;
             delete currentProps.loopStartTime;
             delete currentProps.loopEndTime;
@@ -224,7 +234,7 @@ function handleLoopCompatibleChange() {
     const isChecked = propLoopCompatible.checked;
     loopLockContainer.classList.toggle('hidden', !isChecked);
     loopSettingsPanel.classList.toggle('hidden', !isChecked);
-    if (isChecked && !propLoopStart.value) { // 既に値があれば初期化しない
+    if (isChecked && !propLoopStart.value) {
         const songRecord = findFileByPath(selectedItemPath);
         if (songRecord) {
             const tempAudio = document.createElement('audio');
@@ -242,16 +252,26 @@ function handleLoopCompatibleChange() {
 }
 
 function updateMediaPosition() {
-    if ('mediaSession' in navigator && navigator.mediaSession.metadata) {
+    if ('mediaSession' in navigator && navigator.mediaSession.metadata && activePlayer) {
         navigator.mediaSession.setPositionState({
-            duration: audioPlayer.duration || 0,
-            playbackRate: audioPlayer.playbackRate,
-            position: audioPlayer.currentTime || 0,
+            duration: activePlayer.duration || 0,
+            playbackRate: activePlayer.playbackRate,
+            position: activePlayer.currentTime || 0,
         });
     }
 }
 
-function handleSongEnd() {
+function handleSongEnd(event) {
+    // Ignore the 'ended' event if it's not from the active player
+    // This prevents the fading-out player from triggering the next song
+    if (event && event.target !== activePlayer) {
+        return;
+    }
+    if (loopCheckInterval) {
+        clearInterval(loopCheckInterval);
+        loopCheckInterval = null;
+    }
+    isCrossfading = false;
     setTimeout(playNextSong, 800);
 }
 
@@ -306,20 +326,38 @@ function handleRandomButton() {
         const songRecord = findFileByPath(selectedItemPath);
         if (songRecord) {
             nextSongToPlay = songRecord;
-            if (audioPlayer.paused) playNextSong();
+            if (activePlayer.paused) playNextSong();
         }
     }
 }
 
 async function playSong(songRecord) {
 	if (!songRecord) return;
+
+    // Stop any ongoing loop checks and reset state
+    if (loopCheckInterval) {
+        clearInterval(loopCheckInterval);
+        loopCheckInterval = null;
+    }
+    isCrossfading = false;
+    standbyPlayer.pause();
+    standbyPlayer.src = '';
+    
+    // Reset volumes using Web Audio API if available
+    if (audioContext) {
+        activeGain.gain.cancelScheduledValues(audioContext.currentTime);
+        standbyGain.gain.cancelScheduledValues(audioContext.currentTime);
+        activeGain.gain.setValueAtTime(1, audioContext.currentTime);
+        standbyGain.gain.setValueAtTime(0, audioContext.currentTime);
+    }
+
     const file = songRecord.file;
     const props = songProperties[songRecord.path] || {};
 	recentlyPlayed.unshift(songRecord.path);
 	if (recentlyPlayed.length > 200) recentlyPlayed.pop();
 	await saveProperties('recentlyPlayed', recentlyPlayed);
 	
-    currentLoopInfo = null; // 新しい曲の再生前にリセット
+    currentLoopInfo = null;
     if (props.isLoopCompatible && props.loopEndTime > 0) {
         currentLoopInfo = {
             loopStartTime: props.loopStartTime || 0,
@@ -328,13 +366,17 @@ async function playSong(songRecord) {
     }
     
     const objectURL = URL.createObjectURL(file);
-	audioPlayer.src = objectURL;
+	activePlayer.src = objectURL;
 
 	try {
-		await audioPlayer.play();
+		await activePlayer.play();
+        if (durabilityMode.enabled && currentLoopInfo) {
+            startLoopMonitoring();
+        }
 	} catch (error) {
 		console.error('Playback failed:', error);
 	}
+
 	const songDisplayName = (props.name && props.name.trim() !== '') ? props.name : (file.name.substring(0, file.name.lastIndexOf('.')) || file.name);
 	playerSongName.textContent = songDisplayName;
 	let gameName = 'N/A';
@@ -358,19 +400,28 @@ async function playSong(songRecord) {
 	const svgIcon = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='512' height='512'><rect width='24' height='24' fill='#7e57c2'/><path fill='white' d='M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z'/></svg>`;
 	const artworkURL = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgIcon)}`;
     playerArtwork.src = artworkURL;
+
 	if ('mediaSession' in navigator) {
 		navigator.mediaSession.metadata = new MediaMetadata({
 			title: songDisplayName, artist: gameName, album: '多機能ミュージックリスト',
 			artwork: [ { src: artworkURL, sizes: '512x512', type: 'image/svg+xml' } ]
 		});
-		navigator.mediaSession.setActionHandler('play', () => audioPlayer.play());
-		navigator.mediaSession.setActionHandler('pause', () => audioPlayer.pause());
+		navigator.mediaSession.setActionHandler('play', () => {
+            activePlayer.play();
+            if (durabilityMode.enabled && currentLoopInfo && !isCrossfading) {
+                startLoopMonitoring();
+            }
+        });
+		navigator.mediaSession.setActionHandler('pause', () => {
+            activePlayer.pause();
+            if (loopCheckInterval) clearInterval(loopCheckInterval);
+        });
 		navigator.mediaSession.setActionHandler('nexttrack', () => playNextSong());
 		navigator.mediaSession.setActionHandler('previoustrack', () => {
-			audioPlayer.currentTime = Math.max(audioPlayer.currentTime - 5, 0);
+			activePlayer.currentTime = Math.max(activePlayer.currentTime - 5, 0);
 		});
 		try {
-			navigator.mediaSession.setActionHandler('seekto', (details) => { audioPlayer.currentTime = details.seekTime; });
+			navigator.mediaSession.setActionHandler('seekto', (details) => { activePlayer.currentTime = details.seekTime; });
 		} catch (error) { console.log('seekto action is not supported.'); }
 	}
 }
@@ -432,14 +483,102 @@ function setDurabilityMode(durationInSeconds) {
     }
     durabilityModeButton.textContent = buttonText;
     durabilityOptions.classList.add('hidden');
+
+    // Start or stop loop monitoring based on the new mode
+    if (durabilityMode.enabled && currentLoopInfo && !activePlayer.paused) {
+        startLoopMonitoring();
+    } else if (!durabilityMode.enabled && loopCheckInterval) {
+        clearInterval(loopCheckInterval);
+        loopCheckInterval = null;
+    }
 }
 
-function handleLooping() {
-    if (!currentLoopInfo || audioPlayer.paused || !durabilityMode.enabled) {
+// =================================================================
+// New Crossfade and Loop Handling Functions
+// =================================================================
+function initializeAudioSystem() {
+    crossfadePlayer = document.createElement('audio');
+    crossfadePlayer.id = 'crossfadePlayer';
+    document.body.appendChild(crossfadePlayer);
+    crossfadePlayer.addEventListener('ended', handleSongEnd);
+    crossfadePlayer.addEventListener('timeupdate', updateMediaPosition);
+
+    activePlayer = audioPlayer;
+    standbyPlayer = crossfadePlayer;
+
+    const createAudioContext = () => {
+        if (!audioContext) {
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                sourceMain = audioContext.createMediaElementSource(audioPlayer);
+                gainMain = audioContext.createGain();
+                sourceMain.connect(gainMain);
+                gainMain.connect(audioContext.destination);
+
+                sourceCrossfade = audioContext.createMediaElementSource(crossfadePlayer);
+                gainCrossfade = audioContext.createGain();
+                sourceCrossfade.connect(gainCrossfade);
+                gainCrossfade.connect(audioContext.destination);
+
+                activeGain = gainMain;
+                standbyGain = gainCrossfade;
+                activeGain.gain.value = 1;
+                standbyGain.gain.value = 0;
+                console.log('AudioContext initialized successfully.');
+            } catch (e) {
+                console.error('Web Audio API is not supported in this browser', e);
+            }
+        }
+        document.body.removeEventListener('click', createAudioContext, true);
+    };
+    document.body.addEventListener('click', createAudioContext, true);
+}
+
+function startLoopMonitoring() {
+    if (loopCheckInterval) clearInterval(loopCheckInterval);
+    loopCheckInterval = setInterval(() => {
+        if (!durabilityMode.enabled || !currentLoopInfo || isCrossfading || activePlayer.paused) {
+            return;
+        }
+        const timeUntilLoopEnd = currentLoopInfo.loopEndTime - activePlayer.currentTime;
+        if (timeUntilLoopEnd <= CROSSFADE_DURATION) {
+            triggerCrossfade();
+        }
+    }, 100); // Check every 100ms
+}
+
+function triggerCrossfade() {
+    if (!audioContext) { // Fallback to hard loop if Web Audio API is not available
+        activePlayer.currentTime = currentLoopInfo.loopStartTime;
         return;
     }
-    if (audioPlayer.currentTime >= currentLoopInfo.loopEndTime) {
-        audioPlayer.currentTime = currentLoopInfo.loopStartTime;
+    isCrossfading = true;
+    if (loopCheckInterval) clearInterval(loopCheckInterval);
+    loopCheckInterval = null;
+
+    standbyPlayer.src = activePlayer.src;
+    standbyPlayer.currentTime = currentLoopInfo.loopStartTime;
+    standbyPlayer.play();
+
+    const now = audioContext.currentTime;
+    activeGain.gain.linearRampToValueAtTime(0, now + CROSSFADE_DURATION);
+    standbyGain.gain.linearRampToValueAtTime(1, now + CROSSFADE_DURATION);
+
+    setTimeout(completeCrossfade, CROSSFADE_DURATION * 1000);
+}
+
+function completeCrossfade() {
+    activePlayer.pause();
+
+    // Swap roles
+    [activePlayer, standbyPlayer] = [standbyPlayer, activePlayer];
+    [activeGain, standbyGain] = [standbyGain, activeGain];
+
+    isCrossfading = false;
+    
+    if (durabilityMode.enabled && currentLoopInfo) {
+        startLoopMonitoring();
     }
 }
 
