@@ -3,140 +3,93 @@
     --nav-height: 60px;
     --list-button-height: 70px;
     --safe-area-bottom: env(safe-area-inset-bottom);
+    --lyrics-controls-height: 90px;
 }
 body, html {
-    margin: 0;
-    padding: 0;
-    width: 100%;
-    height: 100%;
+    margin: 0; padding: 0; width: 100%; height: 100%;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-    background-color: #000;
-    color: #fff;
-    overflow: hidden; /* 画面全体のスクロールを禁止 */
-    -webkit-user-select: none; user-select: none;
+    background-color: #000; color: #fff;
+    overflow: hidden; -webkit-user-select: none; user-select: none;
 }
 button, label.settings-button {
-    padding: 12px 24px;
-    font-size: 1em;
-    border-radius: 25px;
-    border: 1px solid #555;
-    background-color: #2c2c2e;
-    color: #fff;
-    cursor: pointer;
-    font-weight: 600;
+    padding: 12px 24px; font-size: 1em; border-radius: 25px; border: 1px solid #555;
+    background-color: #2c2c2e; color: #fff; cursor: pointer; font-weight: 600;
 }
 input[type="file"] { display: none; }
-
-/* 汎用クラス */
-.hidden {
-    display: none !important;
-}
+.hidden { display: none !important; }
 
 /* アプリ全体のコンテナ */
 #app-container {
-    width: 100%;
-    height: calc(100% - var(--nav-height) - var(--safe-area-bottom));
-    overflow: hidden;
-    position: relative;
+    width: 100%; height: calc(100% - var(--nav-height) - var(--safe-area-bottom));
+    overflow: hidden; position: relative;
 }
 .screen {
-    width: 100%;
-    height: 100%;
-    position: absolute;
-    top: 0;
-    left: 0;
-    display: none;
-    flex-direction: column;
-    overflow: hidden; /* 各画面もスクロール禁止 */
-    background-color: #000;
+    width: 100%; height: 100%; position: absolute; top: 0; left: 0;
+    display: none; flex-direction: column; overflow: hidden; background-color: #000;
 }
 .screen.active { display: flex; }
+.scrollable-content { overflow-y: auto; -webkit-overflow-scrolling: touch; overflow-x: hidden; }
 
 /* --- 1. プレイヤー画面 --- */
-.player-content { flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; gap: 15px; }
-#player-folder-name-container { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-.folder-label { font-size: 0.8em; color: #ccc; }
-#player-folder-name { font-weight: 600; }
+#player-screen { justify-content: space-between; }
+#player-main-ui { width: 100%; flex-shrink: 0; }
+.player-content { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; gap: 15px; }
 .artwork-container { width: 75vw; max-width: 320px; aspect-ratio: 1 / 1; }
 #player-artwork { width: 100%; height: 100%; border-radius: 12px; object-fit: cover; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
-#audioPlayer { width: 90%; max-width: 400px; margin-top: 10px; }
+#audioPlayer, #crossfadePlayer { width: 90%; max-width: 400px; margin-top: 10px; }
 .player-info-text { text-align: center; width: 90%; }
-.song-title { font-size: 1.2em; font-weight: bold; }
-.game-title { color: #ccc; }
 
-/* ▼▼▼ 耐久モードUIのスタイル ▼▼▼ */
-#durability-mode-container {
-    position: relative;
-    width: 90%;
-    max-width: 400px;
-}
-#durability-mode-button {
-    width: 100%;
-    background-color: #3a3a3c;
-}
+/* 耐久モードUI */
+#durability-mode-container { position: relative; width: 90%; max-width: 400px; margin-top: 10px; }
+#durability-mode-button { width: 100%; background-color: #3a3a3c; }
 #durability-options {
-    position: absolute;
-    bottom: 110%; /* ボタンの上に表示 */
-    left: 0;
-    right: 0;
-    background-color: #2c2c2e;
-    border-radius: 12px;
-    padding: 8px;
-    box-shadow: 0 -4px 12px rgba(0,0,0,0.4);
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
+    position: absolute; bottom: 110%; left: 0; right: 0; background-color: #2c2c2e;
+    border-radius: 12px; padding: 8px; box-shadow: 0 -4px 12px rgba(0,0,0,0.4);
+    display: flex; flex-direction: column; gap: 5px;
 }
-#durability-options button {
-    width: 100%;
-    text-align: center;
-    background-color: #3a3a3c;
-    border: none;
-    border-radius: 8px;
-    padding: 10px;
-    font-size: 0.9em;
-}
-#durability-options button:hover {
-    background-color: #555;
-}
-/* ▲▲▲ 耐久モードUIのスタイル ▲▲▲ */
+#durability-options button { width: 100%; text-align: center; background-color: #3a3a3c; border: none; border-radius: 8px; padding: 10px; font-size: 0.9em; }
 
+/* 歌詞表示UI */
+#lyrics-container { width: 100%; flex-grow: 1; display: flex; flex-direction: column; overflow: hidden; }
+.lyrics-view { display: none; }
+#partial-lyrics-display { flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 1.1em; line-height: 1.6; text-align: center; padding: 0 10px; }
+#partial-lyrics-display p { margin: 0.1em 0; color: #888; transition: color 0.3s, font-size 0.3s; }
+#partial-lyrics-display p.current-lyric { color: #fff; font-weight: bold; font-size: 1.2em; }
+#full-lyrics-display { height: calc(100% - var(--lyrics-controls-height)); padding: 15px; font-size: 1.2em; line-height: 1.8; box-sizing: border-box; }
+#full-lyrics-display p { margin: 0.5em 0; opacity: 0.6; }
+#full-lyrics-display p.current-lyric { opacity: 1; font-weight: bold; }
+#lyrics-controls { height: var(--lyrics-controls-height); flex-shrink: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5px; gap: 10px; }
+.language-selector { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.language-selector button { font-size: 0.8em; padding: 5px 12px; border-radius: 15px; background-color: #333; }
+.language-selector button.active { background-color: #7e57c2; color: white; }
+.view-toggle { display: flex; background-color: #2c2c2e; border-radius: 20px; padding: 4px; }
+.view-toggle button { font-size: 0.9em; padding: 6px 16px; background: none; border: none; color: #aaa; }
+.view-toggle button.active { background-color: #555; color: white; border-radius: 16px; }
 
-/* --- 2. 一覧画面 --- */
-.scrollable-content { overflow-y: auto; -webkit-overflow-scrolling: touch; overflow-x: hidden; }
-#list-tree-view-container { height: calc(100% - var(--list-button-height)); padding: 10px; }
-.fixed-bottom-button-container { position: absolute; bottom: 0; left: 0; right: 0; height: var(--list-button-height); display: flex; justify-content: center; align-items: center; background: linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0.8) 50%, rgba(0,0,0,0) 100%); padding-bottom: 5px; }
+/* 表示モードによるUI切り替え */
+#player-screen.partial-view #player-main-ui, #player-screen.partial-view #full-lyrics-display { display: none; }
+#player-screen.partial-view #partial-lyrics-display { display: flex; }
+#player-screen.full-view #player-main-ui, #player-screen.full-view #partial-lyrics-display { display: none; }
+#player-screen.full-view #full-lyrics-display { display: block; }
 
 /* --- 3. 設定画面 --- */
+.split-bottom { height: 50%; background-color: #1c1c1e; padding: 10px; overflow-y: auto; position: relative; }
+#loop-settings-panel, #lyrics-settings-panel { border-left: 3px solid #555; padding-left: 10px; margin-top: 15px; }
+.prop-details.readonly span { color: #aaa; font-size: 0.9em; }
+.lyrics-editor { display: flex; gap: 10px; height: 150px; }
+.lyrics-editor textarea { flex: 1; height: 100%; background-color: #333; border: 1px solid #555; color: #fff; border-radius: 5px; padding: 8px; font-family: monospace; resize: none; }
+#prop-lyrics-timings { flex-basis: 100px; flex-grow: 0; text-align: right; }
+
+/* --- その他 (既存のスタイルは省略) --- */
+#list-tree-view-container { height: calc(100% - var(--list-button-height)); padding: 10px; }
+.fixed-bottom-button-container { position: absolute; bottom: 0; left: 0; right: 0; height: var(--list-button-height); display: flex; justify-content: center; align-items: center; background: linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0.8) 50%, rgba(0,0,0,0) 100%); padding-bottom: 5px; }
 .settings-view { width: 100%; height: 100%; display: none; flex-direction: column; }
 .settings-view.active { display: flex; }
 .settings-button-group { flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 20px; }
 .settings-button { text-align: center; width: 80%; max-width: 300px; box-sizing: border-box; }
 .detail-button { margin-top: 20px; }
 #versionDisplay { color: #888; font-size: 0.9em; margin-bottom: 20px; order: -1; }
-
-/* 3-b. 詳細設定画面 */
 .split-top { height: 50%; border-bottom: 1px solid #444; }
-.split-bottom { height: 50%; background-color: #1c1c1e; padding: 10px; overflow-y: auto; position: relative; }
-#back-to-main-settings-button { position: absolute; top: 10px; right: 10px; padding: 5px 10px; font-size: 0.8em; border-radius: 15px; }
-#properties-panel h4 { margin-top: 0; }
-#properties-panel .prop-details { margin: 10px 0; }
-#properties-panel input[type="text"], #properties-panel input[type="number"] { width: 95%; padding: 8px; background-color: #333; border: 1px solid #555; color: #fff; border-radius: 5px; }
-
-/* ▼▼▼ ループ設定UIのスタイル ▼▼▼ */
-#loop-settings-panel {
-    border-left: 3px solid #555;
-    padding-left: 10px;
-    margin-top: 15px;
-}
-.prop-details.readonly span {
-    color: #aaa;
-    font-size: 0.9em;
-}
-/* ▲▲▲ ループ設定UIのスタイル ▲▲▲ */
-
-
-/* --- 共通ツリービューのスタイル --- */
 .tree-view ul { padding-left: 12px; list-style-type: none; }
 .tree-view li { padding: 2px 0; }
 .list-item-container { display: flex; align-items: flex-start; justify-content: space-between; padding: 6px 4px; }
@@ -144,10 +97,7 @@ input[type="file"] { display: none; }
 .toggle-button { flex-shrink: 0; padding: 5px 12px; font-size: 0.8em; border-radius: 15px; margin-left: 10px; }
 .tree-view li > ul { display: none; }
 .tree-view li.open > ul { display: block; }
-.tree-view li.open .toggle-icon { transform: rotate(90deg); }
 .selected-item > .list-item-container { background-color: #3a3a3c; border-radius: 6px; }
-
-/* --- 下部ナビゲーションバー --- */
 #bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; height: var(--nav-height); background-color: rgba(28, 28, 30, 0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-top: 1px solid #444; display: flex; z-index: 100; padding-bottom: var(--safe-area-bottom); }
 .nav-item { flex: 1; display: flex; justify-content: center; align-items: center; height: 100%; }
 .nav-button { background: none; border: none; color: #8e8e93; font-size: 0.9em; cursor: pointer; }

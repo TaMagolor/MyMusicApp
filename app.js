@@ -1,7 +1,7 @@
 // =================================================================
 // Application Version
 // =================================================================
-const APP_VERSION = 'v.3.3.0'; // Added Crossfade for Durability Mode
+const APP_VERSION = 'v.3.4.0'; // Added Lyrics Feature
 
 // =================================================================
 // HTML Element Acquisition
@@ -49,6 +49,21 @@ const propLoopEnd = document.getElementById('prop-loop-end');
 const propLoopStartAuto = document.getElementById('prop-loop-start-auto');
 const propLoopEndAuto = document.getElementById('prop-loop-end-auto');
 
+// --- Lyrics Feature Elements ---
+const playerMainUI = document.getElementById('player-main-ui');
+const lyricsContainer = document.getElementById('lyrics-container');
+const partialLyricsDisplay = document.getElementById('partial-lyrics-display');
+const fullLyricsDisplay = document.getElementById('full-lyrics-display');
+const lyricsLanguageSelector = document.getElementById('lyrics-language-selector');
+const lyricsViewToggle = document.getElementById('lyrics-view-toggle');
+const propLyricsCompatible = document.getElementById('prop-lyrics-compatible');
+const lyricsSettingsPanel = document.getElementById('lyrics-settings-panel');
+const propLyricsLangCount = document.getElementById('prop-lyrics-lang-count');
+const propLyricsCurrentLang = document.getElementById('prop-lyrics-current-lang');
+const propLyricsLangName = document.getElementById('prop-lyrics-lang-name');
+const propLyricsTimings = document.getElementById('prop-lyrics-timings');
+const propLyricsText = document.getElementById('prop-lyrics-text');
+
 const loadingOverlay = document.createElement('div');
 loadingOverlay.id = 'loading-overlay';
 loadingOverlay.innerHTML = '<div>データを処理中...</div>';
@@ -69,28 +84,34 @@ let activeRandomFolderPath = null;
 let durabilityMode = { enabled: false, duration: 0 };
 let currentLoopInfo = null;
 
+// --- Lyrics ---
+let lyricsUpdateInterval = null;
+let currentLyricsData = null;
+let currentLyricsLang = 0;
+let currentPlayerView = 'normal'; // 'normal', 'partial', 'full'
+
 // =================================================================
 // Crossfade Audio System Variables
 // =================================================================
 let audioContext;
-let crossfadePlayer; // The second audio element for crossfading
+let crossfadePlayer;
 let sourceMain, sourceCrossfade;
 let gainMain, gainCrossfade;
 let activePlayer, standbyPlayer;
 let activeGain, standbyGain;
 let loopCheckInterval = null;
 let isCrossfading = false;
-const CROSSFADE_DURATION = 1.0; // 1 second crossfade duration
+const CROSSFADE_DURATION = 1.0;
 
 // =================================================================
 // Application Initialization
 // =================================================================
 window.addEventListener('load', async () => {
-	console.log('App loading... Pure Web App');
+	console.log('App loading...');
 	if (versionDisplay) {
 		versionDisplay.textContent = APP_VERSION;
 	}
-    initializeAudioSystem(); // Initialize the audio system for crossfading
+    initializeAudioSystem();
 	await loadDataFromDB();
 });
 
@@ -118,38 +139,36 @@ fileInput.addEventListener('change', handleFileInputChange);
 savePropertiesButton.addEventListener('click', handleSaveProperties);
 exportButton.addEventListener('click', handleExport);
 importInput.addEventListener('change', handleImport);
-audioPlayer.addEventListener('ended', handleSongEnd);
-audioPlayer.addEventListener('timeupdate', updateMediaPosition); // Loop handling is now separate
+audioPlayer.addEventListener('timeupdate', handleTimeUpdate);
 propLoopCompatible.addEventListener('change', handleLoopCompatibleChange);
+
+// --- Lyrics ---
+propLyricsCompatible.addEventListener('change', () => showPropertiesPanel());
+propLyricsLangCount.addEventListener('change', () => showPropertiesPanel());
+propLyricsCurrentLang.addEventListener('change', () => showPropertiesPanel(false));
+lyricsViewToggle.addEventListener('click', handleViewToggle);
+lyricsLanguageSelector.addEventListener('click', handleLanguageChange);
 
 // =================================================================
 // Event Handler Functions
 // =================================================================
 async function handleFileInputChange(event) {
-    if (!db || !db.songs) {
-        alert('データベースが準備できていません。');
-        return;
-    }
     const files = Array.from(event.target.files);
     if (files.length === 0) return;
-    showLoading(`インポート中: 0 / ${files.length} 曲`);
+    showLoading(`インポート中: 0 / ${files.length}`);
     try {
         await db.songs.clear();
         for (let i = 0; i < files.length; i++) {
             const file = files[i];
-            const songRecord = {
-                path: file.webkitRelativePath,
-                file: file,
-            };
+            const songRecord = { path: file.webkitRelativePath, file: file };
             await db.songs.put(songRecord);
             if ((i + 1) % 10 === 0 || i === files.length - 1) {
-                updateLoadingMessage(`インポート中: ${i + 1} / ${files.length} 曲`);
+                updateLoadingMessage(`インポート中: ${i + 1} / ${files.length}`);
             }
         }
         await loadDataFromDB();
     } catch (error) {
-        console.error('Error during import:', error);
-        alert(`ファイルのインポート中にエラーが発生しました: ${error.message}`);
+        console.error('Import error:', error);
     } finally {
         hideLoading();
     }
@@ -157,35 +176,53 @@ async function handleFileInputChange(event) {
 
 async function handleSaveProperties() {
 	if (!selectedItemPath) return;
-	const currentProps = songProperties[selectedItemPath] || {};
-	currentProps.name = propDisplayName.value;
-	currentProps.sortOrder = parseFloat(propSortOrder.value) || 0;
+	const props = songProperties[selectedItemPath] || {};
+	props.name = propDisplayName.value;
+	props.sortOrder = parseFloat(propSortOrder.value) || 0;
+
 	if (isSelectedItemFolder) {
-		currentProps.isGame = propIsGame.checked;
+		props.isGame = propIsGame.checked;
 	} else {
 		const parsedMultiplier = parseFloat(propMultiplier.value);
-		currentProps.multiplier = !isNaN(parsedMultiplier) ? parsedMultiplier : 1.0;
+		props.multiplier = !isNaN(parsedMultiplier) ? parsedMultiplier : 1.0;
         
-        currentProps.isLoopCompatible = propLoopCompatible.checked;
-        if (currentProps.isLoopCompatible) {
-            currentProps.isLoopTimeLocked = propLoopTimeLocked.checked;
-            currentProps.loopStartTime = timeStringToSeconds(propLoopStart.value);
-            currentProps.loopEndTime = timeStringToSeconds(propLoopEnd.value);
+        // Loop properties
+        props.isLoopCompatible = propLoopCompatible.checked;
+        if (props.isLoopCompatible) {
+            props.isLoopTimeLocked = propLoopTimeLocked.checked;
+            props.loopStartTime = timeStringToSeconds(propLoopStart.value);
+            props.loopEndTime = timeStringToSeconds(propLoopEnd.value);
         } else {
-            delete currentProps.isLoopTimeLocked;
-            delete currentProps.loopStartTime;
-            delete currentProps.loopEndTime;
-            delete currentProps.autoLoopStartTime;
-            delete currentProps.autoLoopEndTime;
+            delete props.isLoopTimeLocked;
+            delete props.loopStartTime;
+            delete props.loopEndTime;
+        }
+        
+        // Lyrics properties
+        props.showLyrics = propLyricsCompatible.checked;
+        if (props.showLyrics) {
+            saveCurrentLyricsLanguage(props); // Save currently displayed language data
+            props.lyricsLangCount = parseInt(propLyricsLangCount.value, 10) || 1;
+            
+            const timings = propLyricsTimings.value.split('\n').map(t => parseFloat(t)).filter(t => !isNaN(t));
+            
+            // Reconstruct the main data structure based on timings
+            // This ensures timings array and lyricsData array are always in sync
+            props.lyricsData = timings.map((time, index) => {
+                const existingLineData = (props.lyricsData || [])[index] || { time: 0, lines: [] };
+                return { time: time, lines: existingLineData.lines };
+            });
+
+        } else {
+            delete props.lyricsLangCount;
+            delete props.lyricsLangNames;
+            delete props.lyricsData;
         }
 	}
-	songProperties[selectedItemPath] = currentProps;
+
+	songProperties[selectedItemPath] = props;
 	await saveProperties('songProperties', songProperties);
-	const openFolderPaths = new Set();
-	document.querySelectorAll('.tree-view .folder-item.open').forEach(folder => {
-		openFolderPaths.add(folder.dataset.folderPath);
-	});
-	renderTreeView(openFolderPaths);
+	renderTreeView(getOpenFolders());
 }
 
 async function handleExport() {
@@ -210,20 +247,10 @@ function handleImport(event) {
 	reader.onload = async (e) => {
 		try {
 			const importedSettings = JSON.parse(e.target.result);
-            for (const path in importedSettings) {
-                const props = importedSettings[path];
-                if (props.isLoopCompatible === true && props.isLoopTimeLocked === false) {
-                    if (props.autoLoopStartTime != null && props.autoLoopEndTime != null) {
-                        props.loopStartTime = props.autoLoopStartTime;
-                        props.loopEndTime = props.autoLoopEndTime;
-                    }
-                }
-            }
 			await saveProperties('songProperties', importedSettings);
 			await loadDataFromDB();
 		} catch (error) {
-			console.error('インポートエラー:', error);
-            alert(`設定のインポートに失敗しました: ${error.message}`);
+			console.error('Import error:', error);
 		}
 	};
 	reader.readAsText(file);
@@ -234,43 +261,16 @@ function handleLoopCompatibleChange() {
     const isChecked = propLoopCompatible.checked;
     loopLockContainer.classList.toggle('hidden', !isChecked);
     loopSettingsPanel.classList.toggle('hidden', !isChecked);
-    if (isChecked && !propLoopStart.value) {
-        const songRecord = findFileByPath(selectedItemPath);
-        if (songRecord) {
-            const tempAudio = document.createElement('audio');
-            tempAudio.preload = 'metadata';
-            tempAudio.src = URL.createObjectURL(songRecord.file);
-            tempAudio.addEventListener('loadedmetadata', () => {
-                propLoopStart.value = formatTime(0);
-                propLoopEnd.value = formatTime(tempAudio.duration);
-                propLoopStartAuto.textContent = '--:--.---';
-                propLoopEndAuto.textContent = '--:--.---';
-                URL.revokeObjectURL(tempAudio.src);
-            });
-        }
-    }
 }
 
-function updateMediaPosition() {
-    if ('mediaSession' in navigator && navigator.mediaSession.metadata && activePlayer) {
-        navigator.mediaSession.setPositionState({
-            duration: activePlayer.duration || 0,
-            playbackRate: activePlayer.playbackRate,
-            position: activePlayer.currentTime || 0,
-        });
-    }
+function handleTimeUpdate() {
+    updateMediaPosition();
 }
 
 function handleSongEnd(event) {
-    // Ignore the 'ended' event if it's not from the active player
-    // This prevents the fading-out player from triggering the next song
-    if (event && event.target !== activePlayer) {
-        return;
-    }
-    if (loopCheckInterval) {
-        clearInterval(loopCheckInterval);
-        loopCheckInterval = null;
-    }
+    if (event && event.target !== activePlayer) return;
+    if (loopCheckInterval) clearInterval(loopCheckInterval);
+    if (lyricsUpdateInterval) clearInterval(lyricsUpdateInterval);
     isCrossfading = false;
     setTimeout(playNextSong, 800);
 }
@@ -279,28 +279,24 @@ function handleSongEnd(event) {
 // Core Functions
 // =================================================================
 function handleTreeClick(event) {
-    const target = event.target;
-    const liElement = target.closest('li');
+    const liElement = event.target.closest('li');
     if (!liElement) return;
 
-    if (target.matches('.toggle-button')) {
+    if (event.target.matches('.toggle-button')) {
         liElement.classList.toggle('open');
-        target.textContent = liElement.classList.contains('open') ? '折り畳み' : '展開';
-    } else if (target.closest('.item-content')) {
+        event.target.textContent = liElement.classList.contains('open') ? '折り畳み' : '展開';
+    } else if (event.target.closest('.item-content')) {
         if (liElement.matches('.folder-item')) {
             handleFolderSelect(liElement);
         } else if (liElement.matches('.file-item')) {
             const songRecord = findFileByPath(liElement.dataset.filePath);
-            if (songRecord) {
-                handleSongSelect(liElement, songRecord);
-            }
+            if (songRecord) handleSongSelect(liElement, songRecord);
         }
     }
 }
 
 function handleFolderSelect(folderElement) {
-    const folderPath = folderElement.dataset.folderPath;
-    selectedItemPath = folderPath;
+    selectedItemPath = folderElement.dataset.folderPath;
     isSelectedItemFolder = true;
     updateSelectionStyle(folderElement);
     showPropertiesPanel();
@@ -334,16 +330,11 @@ function handleRandomButton() {
 async function playSong(songRecord) {
 	if (!songRecord) return;
 
-    // Stop any ongoing loop checks and reset state
-    if (loopCheckInterval) {
-        clearInterval(loopCheckInterval);
-        loopCheckInterval = null;
-    }
+    if (loopCheckInterval) clearInterval(loopCheckInterval);
     isCrossfading = false;
     standbyPlayer.pause();
     standbyPlayer.src = '';
     
-    // Reset volumes using Web Audio API if available
     if (audioContext) {
         activeGain.gain.cancelScheduledValues(audioContext.currentTime);
         standbyGain.gain.cancelScheduledValues(audioContext.currentTime);
@@ -365,14 +356,11 @@ async function playSong(songRecord) {
         };
     }
     
-    const objectURL = URL.createObjectURL(file);
-	activePlayer.src = objectURL;
+    activePlayer.src = URL.createObjectURL(file);
 
 	try {
 		await activePlayer.play();
-        if (durabilityMode.enabled && currentLoopInfo) {
-            startLoopMonitoring();
-        }
+        if (durabilityMode.enabled && currentLoopInfo) startLoopMonitoring();
 	} catch (error) {
 		console.error('Playback failed:', error);
 	}
@@ -394,8 +382,7 @@ async function playSong(songRecord) {
         const folderProps = songProperties[activeRandomFolderPath] || {};
         playerFolderName.textContent = folderProps.name || activeRandomFolderPath.split('/').pop();
     } else {
-        const rootFolderName = (libraryFiles.length > 0) ? libraryFiles[0].path.split('/')[0] : 'フォルダ未選択';
-        playerFolderName.textContent = rootFolderName;
+        playerFolderName.textContent = '全曲';
     }
 	const svgIcon = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='512' height='512'><rect width='24' height='24' fill='#7e57c2'/><path fill='white' d='M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z'/></svg>`;
 	const artworkURL = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgIcon)}`;
@@ -406,24 +393,35 @@ async function playSong(songRecord) {
 			title: songDisplayName, artist: gameName, album: '多機能ミュージックリスト',
 			artwork: [ { src: artworkURL, sizes: '512x512', type: 'image/svg+xml' } ]
 		});
-		navigator.mediaSession.setActionHandler('play', () => {
-            activePlayer.play();
-            if (durabilityMode.enabled && currentLoopInfo && !isCrossfading) {
-                startLoopMonitoring();
-            }
-        });
-		navigator.mediaSession.setActionHandler('pause', () => {
-            activePlayer.pause();
-            if (loopCheckInterval) clearInterval(loopCheckInterval);
-        });
+		navigator.mediaSession.setActionHandler('play', () => activePlayer.play());
+		navigator.mediaSession.setActionHandler('pause', () => activePlayer.pause());
 		navigator.mediaSession.setActionHandler('nexttrack', () => playNextSong());
-		navigator.mediaSession.setActionHandler('previoustrack', () => {
-			activePlayer.currentTime = Math.max(activePlayer.currentTime - 5, 0);
-		});
+		navigator.mediaSession.setActionHandler('previoustrack', () => { activePlayer.currentTime = Math.max(activePlayer.currentTime - 5, 0); });
 		try {
 			navigator.mediaSession.setActionHandler('seekto', (details) => { activePlayer.currentTime = details.seekTime; });
-		} catch (error) { console.log('seekto action is not supported.'); }
+		} catch (error) { console.log('seekto is not supported.'); }
 	}
+    
+    // --- Lyrics Handling ---
+    if (lyricsUpdateInterval) clearInterval(lyricsUpdateInterval);
+    if (props.showLyrics && props.lyricsData && props.lyricsData.length > 0) {
+        currentLyricsData = {
+            timings: props.lyricsData.map(d => d.time),
+            languages: Array.from({ length: props.lyricsLangCount || 1 }, (_, langIndex) => ({
+                name: (props.lyricsLangNames || [])[langIndex] || `言語 ${langIndex + 1}`,
+                lines: props.lyricsData.map(d => (d.lines || [])[langIndex] || '')
+            }))
+        };
+        currentLyricsLang = 0;
+        lyricsContainer.classList.remove('hidden');
+        setupLyricsControls(currentLyricsData.languages);
+        switchLyricsView('normal');
+        lyricsUpdateInterval = setInterval(updateLyricsDisplay, 250);
+    } else {
+        currentLyricsData = null;
+        lyricsContainer.classList.add('hidden');
+        switchLyricsView('normal');
+    }
 }
 
 function playNextSong() {
@@ -432,30 +430,30 @@ function playNextSong() {
         nextSongToPlay = null;
         return;
     }
-    if (!activeRandomFolderPath) {
-        if (libraryFiles.length > 0) {
-            const rootFolderName = libraryFiles[0].path.split('/')[0];
-            activeRandomFolderPath = rootFolderName;
-        } else { return; }
+    if (!activeRandomFolderPath && libraryFiles.length > 0) {
+        activeRandomFolderPath = libraryFiles[0].path.split('/')[0];
     }
-    let playlist = getPlaylist(activeRandomFolderPath);
+    if (!activeRandomFolderPath) return;
+
+    const playlist = getPlaylist(activeRandomFolderPath);
     if (playlist.length === 0) return;
     
     const exclusionCount = Math.floor(Math.min(50, playlist.length / 2));
     const excludedPaths = recentlyPlayed.slice(0, exclusionCount);
     const weightedList = [];
     let totalWeight = 0;
+
     for (const record of playlist) {
         const filePath = record.path;
-        const f = excludedPaths.includes(filePath) ? 0 : 1;
+        if (excludedPaths.includes(filePath)) continue;
         const props = songProperties[filePath] || {};
         const multiplier = (typeof props.multiplier === 'number') ? props.multiplier : 1.0;
-        const weight = multiplier * f;
-        if (weight > 0) {
-            weightedList.push({ record: record, weight: weight });
-            totalWeight += weight;
+        if (multiplier > 0) {
+            weightedList.push({ record: record, weight: multiplier });
+            totalWeight += multiplier;
         }
     }
+
     let songToPlay = null;
     if (weightedList.length > 0) {
         let randomValue = Math.random() * totalWeight;
@@ -467,8 +465,12 @@ function playNextSong() {
             }
         }
     } else if (playlist.length > 0) {
-        const randomIndex = Math.floor(Math.random() * playlist.length);
-        songToPlay = playlist[randomIndex];
+        const nonExcludedPlaylist = playlist.filter(r => !excludedPaths.includes(r.path));
+        if (nonExcludedPlaylist.length > 0) {
+            songToPlay = nonExcludedPlaylist[Math.floor(Math.random() * nonExcludedPlaylist.length)];
+        } else {
+            songToPlay = playlist[Math.floor(Math.random() * playlist.length)];
+        }
     }
     playSong(songToPlay);
 }
@@ -477,14 +479,9 @@ function playNextSong() {
 function setDurabilityMode(durationInSeconds) {
     durabilityMode.enabled = durationInSeconds > 0;
     durabilityMode.duration = durationInSeconds;
-    let buttonText = '耐久モード: ループなし';
-    if (durabilityMode.enabled) {
-        buttonText = `耐久モード: ${durationInSeconds / 60}分`;
-    }
-    durabilityModeButton.textContent = buttonText;
+    durabilityModeButton.textContent = `耐久モード: ${durabilityMode.enabled ? `${durationInSeconds / 60}分` : 'ループなし'}`;
     durabilityOptions.classList.add('hidden');
 
-    // Start or stop loop monitoring based on the new mode
     if (durabilityMode.enabled && currentLoopInfo && !activePlayer.paused) {
         startLoopMonitoring();
     } else if (!durabilityMode.enabled && loopCheckInterval) {
@@ -494,15 +491,10 @@ function setDurabilityMode(durationInSeconds) {
 }
 
 // =================================================================
-// New Crossfade and Loop Handling Functions
+// Crossfade and Loop Handling Functions
 // =================================================================
 function initializeAudioSystem() {
-    crossfadePlayer = document.createElement('audio');
-    crossfadePlayer.id = 'crossfadePlayer';
-    document.body.appendChild(crossfadePlayer);
-    crossfadePlayer.addEventListener('ended', handleSongEnd);
-    crossfadePlayer.addEventListener('timeupdate', updateMediaPosition);
-
+    crossfadePlayer = document.getElementById('crossfadePlayer');
     activePlayer = audioPlayer;
     standbyPlayer = crossfadePlayer;
 
@@ -510,24 +502,18 @@ function initializeAudioSystem() {
         if (!audioContext) {
             try {
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                
                 sourceMain = audioContext.createMediaElementSource(audioPlayer);
                 gainMain = audioContext.createGain();
-                sourceMain.connect(gainMain);
-                gainMain.connect(audioContext.destination);
-
+                sourceMain.connect(gainMain).connect(audioContext.destination);
                 sourceCrossfade = audioContext.createMediaElementSource(crossfadePlayer);
                 gainCrossfade = audioContext.createGain();
-                sourceCrossfade.connect(gainCrossfade);
-                gainCrossfade.connect(audioContext.destination);
-
+                sourceCrossfade.connect(gainCrossfade).connect(audioContext.destination);
                 activeGain = gainMain;
                 standbyGain = gainCrossfade;
                 activeGain.gain.value = 1;
                 standbyGain.gain.value = 0;
-                console.log('AudioContext initialized successfully.');
             } catch (e) {
-                console.error('Web Audio API is not supported in this browser', e);
+                console.error('Web Audio API is not supported', e);
             }
         }
         document.body.removeEventListener('click', createAudioContext, true);
@@ -538,18 +524,14 @@ function initializeAudioSystem() {
 function startLoopMonitoring() {
     if (loopCheckInterval) clearInterval(loopCheckInterval);
     loopCheckInterval = setInterval(() => {
-        if (!durabilityMode.enabled || !currentLoopInfo || isCrossfading || activePlayer.paused) {
-            return;
-        }
+        if (!durabilityMode.enabled || !currentLoopInfo || isCrossfading || activePlayer.paused) return;
         const timeUntilLoopEnd = currentLoopInfo.loopEndTime - activePlayer.currentTime;
-        if (timeUntilLoopEnd <= CROSSFADE_DURATION) {
-            triggerCrossfade();
-        }
-    }, 100); // Check every 100ms
+        if (timeUntilLoopEnd <= CROSSFADE_DURATION) triggerCrossfade();
+    }, 100);
 }
 
 function triggerCrossfade() {
-    if (!audioContext) { // Fallback to hard loop if Web Audio API is not available
+    if (!audioContext) {
         activePlayer.currentTime = currentLoopInfo.loopStartTime;
         return;
     }
@@ -570,16 +552,123 @@ function triggerCrossfade() {
 
 function completeCrossfade() {
     activePlayer.pause();
-
-    // Swap roles
     [activePlayer, standbyPlayer] = [standbyPlayer, activePlayer];
     [activeGain, standbyGain] = [standbyGain, activeGain];
-
     isCrossfading = false;
-    
-    if (durabilityMode.enabled && currentLoopInfo) {
-        startLoopMonitoring();
+    if (durabilityMode.enabled && currentLoopInfo) startLoopMonitoring();
+}
+
+// =================================================================
+// Lyrics Specific Functions (New)
+// =================================================================
+function handleViewToggle(event) {
+    if (event.target.tagName === 'BUTTON') {
+        switchLyricsView(event.target.dataset.view);
     }
+}
+
+function switchLyricsView(view) {
+    currentPlayerView = view;
+    playerScreen.className = 'screen active';
+    if (view === 'partial') {
+        playerScreen.classList.add('partial-view');
+    } else if (view === 'full') {
+        playerScreen.classList.add('full-view');
+        renderFullLyrics();
+    }
+    lyricsViewToggle.querySelectorAll('button').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.view === view);
+    });
+    updateLyricsDisplay();
+}
+
+function handleLanguageChange(event) {
+    if (event.target.tagName === 'BUTTON') {
+        currentLyricsLang = parseInt(event.target.dataset.lang, 10);
+        lyricsLanguageSelector.querySelectorAll('button').forEach(btn => {
+            btn.classList.toggle('active', parseInt(btn.dataset.lang, 10) === currentLyricsLang);
+        });
+        if (currentPlayerView === 'full') renderFullLyrics();
+        updateLyricsDisplay();
+    }
+}
+
+function updateLyricsDisplay() {
+    if (!currentLyricsData || currentPlayerView === 'normal' || !activePlayer) return;
+
+    const currentTime = activePlayer.currentTime;
+    const timings = currentLyricsData.timings;
+    let currentIndex = -1;
+    for (let i = timings.length - 1; i >= 0; i--) {
+        if (currentTime >= timings[i]) {
+            currentIndex = i;
+            break;
+        }
+    }
+
+    if (currentPlayerView === 'partial') {
+        renderPartialLyrics(currentIndex);
+    } else if (currentPlayerView === 'full') {
+        highlightFullLyrics(currentIndex);
+    }
+}
+
+function renderPartialLyrics(currentIndex) {
+    const lines = currentLyricsData.languages[currentLyricsLang].lines;
+    let content = '';
+    for (let i = -2; i <= 2; i++) {
+        const lineIndex = currentIndex + i;
+        const line = (lineIndex >= 0 && lineIndex < lines.length) ? lines[lineIndex] : '&nbsp;';
+        const className = (i === 0) ? 'current-lyric' : '';
+        content += `<p class="${className}">${line}</p>`;
+    }
+    partialLyricsDisplay.innerHTML = content;
+}
+
+function renderFullLyrics() {
+    const lines = currentLyricsData.languages[currentLyricsLang].lines;
+    fullLyricsDisplay.innerHTML = lines.map((line, index) => `<p data-line-index="${index}">${line || '&nbsp;'}</p>`).join('');
+}
+
+function highlightFullLyrics(currentIndex) {
+    const currentLineElement = fullLyricsDisplay.querySelector(`p.current-lyric`);
+    if(currentLineElement) currentLineElement.classList.remove('current-lyric');
+
+    if (currentIndex > -1) {
+        const nextLineElement = fullLyricsDisplay.querySelector(`p[data-line-index="${currentIndex}"]`);
+        if (nextLineElement) {
+            nextLineElement.classList.add('current-lyric');
+            nextLineElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }
+}
+
+function setupLyricsControls(languages) {
+    lyricsLanguageSelector.innerHTML = languages.map((lang, index) => 
+        `<button data-lang="${index}" class="${index === 0 ? 'active' : ''}">${lang.name}</button>`
+    ).join('');
+}
+
+function saveCurrentLyricsLanguage(props) {
+    if (!props.showLyrics) return;
+
+    const langIndex = parseInt(propLyricsCurrentLang.value, 10);
+    
+    props.lyricsLangNames = props.lyricsLangNames || [];
+    props.lyricsData = props.lyricsData || [];
+
+    props.lyricsLangNames[langIndex] = propLyricsLangName.value;
+
+    const allLines = propLyricsText.value.split('\n');
+    const timings = propLyricsTimings.value.split('\n').map(t => parseFloat(t));
+
+    for(let i = 0; i < timings.length; i++){
+        if (!props.lyricsData[i]) props.lyricsData[i] = { time: 0, lines: [] };
+        props.lyricsData[i].time = timings[i] || props.lyricsData[i].time;
+        if (!props.lyricsData[i].lines) props.lyricsData[i].lines = [];
+        props.lyricsData[i].lines[langIndex] = allLines[i] || '';
+    }
+    props.lyricsData.length = timings.length;
 }
 
 // =================================================================
@@ -616,17 +705,23 @@ function renderTreeView(pathsToKeepOpen = null) {
     listTreeViewContainer.appendChild(treeHTML.cloneNode(true));
     settingsTreeViewContainer.innerHTML = '';
     settingsTreeViewContainer.appendChild(treeHTML);
-    const applyOpenState = (container) => {
+
+    const applyState = (container) => {
         if (pathsToKeepOpen) {
             container.querySelectorAll('.folder-item').forEach(folder => {
                 if (pathsToKeepOpen.has(folder.dataset.folderPath)) {
                     folder.classList.add('open');
+                    folder.querySelector('.toggle-button').textContent = '折り畳み';
                 }
             });
         }
+        if(selectedItemPath) {
+            const el = container.querySelector(`li[data-folder-path="${selectedItemPath}"], li[data-file-path="${selectedItemPath}"]`);
+            if(el) el.classList.add('selected-item');
+        }
     };
-    applyOpenState(listTreeViewContainer);
-    applyOpenState(settingsTreeViewContainer);
+    applyState(listTreeViewContainer);
+    applyState(settingsTreeViewContainer);
 }
 
 function createTreeViewHTML(node, currentPath = '') {
@@ -673,13 +768,14 @@ function createTreeViewHTML(node, currentPath = '') {
     return ul;
 }
 
-function showPropertiesPanel() {
+function showPropertiesPanel(resetData = true) {
     if (!selectedItemPath || !detailSettingsView.classList.contains('active')) {
         propertiesPanel.style.display = 'none';
         return;
     }
     const props = songProperties[selectedItemPath] || {};
     propSortOrder.value = props.sortOrder || 0;
+
     if (isSelectedItemFolder) {
         propItemName.textContent = selectedItemPath.split('/').pop();
         propDisplayName.value = props.name || '';
@@ -693,17 +789,37 @@ function showPropertiesPanel() {
         propDisplayName.value = props.name || '';
         propMultiplier.value = (typeof props.multiplier === 'number') ? props.multiplier : 1.0;
         
+        // Loop Panel Logic
         const isLoop = props.isLoopCompatible || false;
         propLoopCompatible.checked = isLoop;
         loopLockContainer.classList.toggle('hidden', !isLoop);
         loopSettingsPanel.classList.toggle('hidden', !isLoop);
-        
         if (isLoop) {
             propLoopTimeLocked.checked = props.isLoopTimeLocked || false;
             propLoopStart.value = formatTime(props.loopStartTime);
             propLoopEnd.value = formatTime(props.loopEndTime);
-            propLoopStartAuto.textContent = props.autoLoopStartTime != null ? formatTime(props.autoLoopStartTime) : '--:--.---';
-            propLoopEndAuto.textContent = props.autoLoopEndTime != null ? formatTime(props.autoLoopEndTime) : '--:--.---';
+        }
+
+        // Lyrics Panel Logic
+        const showLyrics = props.showLyrics || false;
+        propLyricsCompatible.checked = showLyrics;
+        lyricsSettingsPanel.classList.toggle('hidden', !showLyrics);
+        if (showLyrics) {
+            if (resetData) {
+                propLyricsLangCount.value = props.lyricsLangCount || 1;
+                propLyricsCurrentLang.value = 0;
+            }
+            const langIndex = parseInt(propLyricsCurrentLang.value, 10);
+            const langCount = parseInt(propLyricsLangCount.value, 10);
+            if (langIndex >= langCount) {
+                propLyricsCurrentLang.value = langCount - 1;
+                showPropertiesPanel(false);
+                return;
+            }
+            propLyricsLangName.value = (props.lyricsLangNames || [])[langIndex] || '';
+            const lyricsData = props.lyricsData || [];
+            propLyricsTimings.value = lyricsData.map(d => d.time).join('\n');
+            propLyricsText.value = lyricsData.map(d => (d.lines || [])[langIndex] || '').join('\n');
         }
         
         songSpecificSettings.style.display = 'block';
@@ -734,8 +850,7 @@ async function loadDataFromDB() {
             songProperties = props || {};
             recentlyPlayed = recent || [];
             if (libraryFiles.length > 0) {
-                const rootFolderName = libraryFiles[0].path.split('/')[0];
-                activeRandomFolderPath = rootFolderName;
+                activeRandomFolderPath = libraryFiles[0].path.split('/')[0];
             }
             fileTree = buildFileTree(libraryFiles);
             renderTreeView();
@@ -747,7 +862,6 @@ async function loadDataFromDB() {
         }
     } catch (error) {
         console.error('Failed to load data from DB:', error);
-        alert(`データベースの読み込みに失敗しました: ${error.message}`);
     } finally {
         hideLoading();
     }
@@ -755,16 +869,13 @@ async function loadDataFromDB() {
 
 function getPlaylist(folderPath) {
     const targetPath = folderPath || activeRandomFolderPath;
-    if (targetPath) {
-        const pathParts = targetPath.split('/');
-        let targetNode = fileTree;
-        for (const part of pathParts) {
-            targetNode = targetNode ? targetNode[part] : undefined;
-        }
-        return targetNode ? getFilesFromNode(targetNode) : [];
-    } else {
-        return Array.from(libraryFiles);
+    if (!targetPath) return [];
+    const pathParts = targetPath.split('/');
+    let targetNode = fileTree;
+    for (const part of pathParts) {
+        targetNode = targetNode ? targetNode[part] : undefined;
     }
+    return targetNode ? getFilesFromNode(targetNode) : [];
 }
 
 function getFilesFromNode(node) {
@@ -781,12 +892,7 @@ function getFilesFromNode(node) {
 }
 
 function findFileByPath(filePath) {
-    for (const record of libraryFiles) {
-        if (record.path === filePath) {
-            return record;
-        }
-    }
-    return null;
+    return libraryFiles.find(record => record.path === filePath) || null;
 }
 
 function buildFileTree(records) {
@@ -798,9 +904,7 @@ function buildFileTree(records) {
         for (let i = 0; i < pathParts.length; i++) {
             const part = pathParts[i];
             if (i < pathParts.length - 1) {
-                if (!currentLevel[part]) {
-                    currentLevel[part] = {};
-                }
+                if (!currentLevel[part]) currentLevel[part] = {};
                 currentLevel = currentLevel[part];
             } else {
                 currentLevel[part] = record;
@@ -821,8 +925,16 @@ function hideLoading() {
 	loadingOverlay.style.display = 'none';
 }
 
+function getOpenFolders() {
+    const openFolders = new Set();
+    document.querySelectorAll('.tree-view .folder-item.open').forEach(folder => {
+        openFolders.add(folder.dataset.folderPath);
+    });
+    return openFolders;
+}
+
 function formatTime(totalSeconds) {
-    if (totalSeconds == null || isNaN(totalSeconds) || totalSeconds < 0) return "00:00.000";
+    if (totalSeconds == null || isNaN(totalSeconds) || totalSeconds < 0) return "";
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = Math.floor(totalSeconds % 60);
     const milliseconds = Math.round((totalSeconds - Math.floor(totalSeconds)) * 1000);
@@ -836,3 +948,14 @@ function timeStringToSeconds(timeString) {
     const [, minutes, seconds, milliseconds] = parts.map(Number);
     return minutes * 60 + seconds + milliseconds / 1000;
 }
+
+function updateMediaPosition() {
+    if ('mediaSession' in navigator && navigator.mediaSession.metadata && activePlayer) {
+        navigator.mediaSession.setPositionState({
+            duration: activePlayer.duration || 0,
+            playbackRate: activePlayer.playbackRate,
+            position: activePlayer.currentTime || 0,
+        });
+    }
+}
+

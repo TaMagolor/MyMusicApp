@@ -8,55 +8,66 @@
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
     <script src="https://unpkg.com/dexie@latest/dist/dexie.js"></script>
-    <style>
-        .hidden {
-            display: none;
-        }
-        #audioPlayer, #crossfadePlayer {
-            width: 100%;
-            margin-top: 8px;
-        }
-    </style>
 </head>
 <body>
     <main id="app-container">
 
+        <!-- ▼▼▼ 1. プレイヤー画面 ▼▼▼ -->
         <div id="player-screen" class="screen active">
-            <div class="player-content">
-                <div id="player-folder-name-container" class="player-info-text">
-                    <span class="folder-label">現在選択中のフォルダ:</span>
-                    <span id="player-folder-name">フォルダ名</span>
+            <!-- 通常のプレイヤーUI -->
+            <div id="player-main-ui">
+                <div class="player-content">
+                    <div id="player-folder-name-container" class="player-info-text">
+                        <span class="folder-label">現在選択中のフォルダ:</span>
+                        <span id="player-folder-name">フォルダ名</span>
+                    </div>
+                    <div class="artwork-container">
+                        <img id="player-artwork" src="data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2024%2024'%20width%3D'512'%20height%3D'512'%3E%3Crect%20width%3D'24'%20height%3D'24'%20fill%3D'%237e57c2'%2F%3E%3Cpath%20fill%3D'white'%20d%3D'M12%203v10.55c-.59-.34-1.27-.55-2-.55-2.21%200-4%201.79-4%204s1.79%204%204%204%204-1.79%204-4V7h4V3h-6z'%2F%3E%3C%2Fsvg%3E" alt="Artwork">
+                    </div>
+                    <audio id="audioPlayer" controls></audio>
+                    <audio id="crossfadePlayer" class="hidden"></audio>
+                    <div id="player-song-name" class="player-info-text song-title">曲名</div>
+                    <div id="player-game-name" class="player-info-text game-title">ゲーム名</div>
+                    
+                    <!-- 耐久モードUI -->
+                    <div id="durability-mode-container">
+                        <button id="durability-mode-button">耐久モード: ループなし</button>
+                        <div id="durability-options" class="hidden">
+                            <button data-duration="0">ループなし</button>
+                            <button data-duration="300">5分</button>
+                            <button data-duration="600">10分</button>
+                            <button data-duration="900">15分</button>
+                            <button data-duration="1800">30分</button>
+                            <button data-duration="3600">60分</button>
+                        </div>
+                    </div>
                 </div>
-                <div class="artwork-container">
-                    <img id="player-artwork" src="data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2024%2024'%20width%3D'512'%20height%3D'512'%3E%3Crect%20width%3D'24'%20height%3D'24'%20fill%3D'%237e57c2'%2F%3E%3Cpath%20fill%3D'white'%20d%3D'M12%203v10.55c-.59-.34-1.27-.55-2-.55-2.21%200-4%201.79-4%204s1.79%204%204%204%204-1.79%204-4V7h4V3h-6z'%2F%3E%3C%2Fsvg%3E" alt="Artwork">
-                </div>
-                <audio id="audioPlayer" controls></audio>
-                <audio id="crossfadePlayer" controls class="hidden"></audio>
-                <div id="player-song-name" class="player-info-text song-title">曲名</div>
-                <div id="player-game-name" class="player-info-text game-title">ゲーム名</div>
-                
-                <div id="durability-mode-container">
-                    <button id="durability-mode-button">耐久モード: ループなし</button>
-                    <div id="durability-options" class="hidden">
-                        <button data-duration="0">ループなし</button>
-                        <button data-duration="300">5分</button>
-                        <button data-duration="600">10分</button>
-                        <button data-duration="900">15分</button>
-                        <button data-duration="1800">30分</button>
-                        <button data-duration="3600">60分</button>
+            </div>
+
+            <!-- 歌詞表示UI -->
+            <div id="lyrics-container" class="hidden">
+                <div id="partial-lyrics-display" class="lyrics-view"></div>
+                <div id="full-lyrics-display" class="lyrics-view scrollable-content"></div>
+                <div id="lyrics-controls">
+                    <div id="lyrics-language-selector" class="language-selector"></div>
+                    <div id="lyrics-view-toggle" class="view-toggle">
+                        <button data-view="normal" class="active">通常</button>
+                        <button data-view="partial">一部</button>
+                        <button data-view="full">全文</button>
                     </div>
                 </div>
             </div>
         </div>
 
+        <!-- ▼▼▼ 2. 一覧画面 (変更なし) ▼▼▼ -->
         <div id="list-screen" class="screen">
-            <div id="list-tree-view-container" class="scrollable-content tree-view">
-            </div>
+            <div id="list-tree-view-container" class="scrollable-content tree-view"></div>
             <div class="fixed-bottom-button-container">
                 <button id="list-random-button">ランダム再生 / 再生予約</button>
             </div>
         </div>
 
+        <!-- ▼▼▼ 3. 全体設定画面 ▼▼▼ -->
         <div id="settings-screen" class="screen">
             <div id="main-settings" class="settings-view active">
                 <div class="settings-button-group">
@@ -70,42 +81,44 @@
                 </div>
             </div>
             <div id="detail-settings" class="settings-view">
-                <div id="settings-tree-view-container" class="scrollable-content split-top tree-view">
-                </div>
+                <div id="settings-tree-view-container" class="scrollable-content split-top tree-view"></div>
                 <div id="properties-panel" class="split-bottom">
                     <button id="back-to-main-settings-button">戻る</button>
                     <h4>詳細設定</h4>
                     <p>対象: <span id="prop-item-name"></span></p>
                     <div class="prop-details"><label>表示名(Name): <input type="text" id="prop-display-name"></label></div>
                     <div class="prop-details"><label>並び替え順: <input type="number" id="prop-sort-order" step="0.01" value="0"></label></div>
+                    
                     <div id="song-specific-settings">
                         <div class="prop-details"><label>抽選倍率: <input type="number" id="prop-lottery-multiplier" min="0" step="0.0001" value="1.0"></label></div>
                         
+                        <!-- 耐久モード設定 -->
                         <div id="loop-feature-container">
-                            <div class="prop-details">
-                                <label><input type="checkbox" id="prop-loop-compatible"> ループに対応</label>
-                            </div>
-                            <div id="loop-lock-container" class="hidden">
-                                <div class="prop-details">
-                                    <label><input type="checkbox" id="prop-loop-time-locked"> ループ時間を固定</label>
-                                </div>
-                            </div>
+                            <div class="prop-details"><label><input type="checkbox" id="prop-loop-compatible"> ループに対応</label></div>
+                            <div id="loop-lock-container" class="hidden"><div class="prop-details"><label><input type="checkbox" id="prop-loop-time-locked"> ループ時間を固定</label></div></div>
                             <div id="loop-settings-panel" class="hidden">
-                                <div class="prop-details">
-                                    <label>ループ開始時間: <input type="text" id="prop-loop-start" placeholder="mm:ss.sss"></label>
-                                </div>
-                                <div class="prop-details">
-                                    <label>ループ終了時間: <input type="text" id="prop-loop-end" placeholder="mm:ss.sss"></label>
-                                </div>
-                                <div class="prop-details readonly">
-                                    <span>自動計算(開始): <span id="prop-loop-start-auto">--:--.---</span></span>
-                                </div>
-                                <div class="prop-details readonly">
-                                    <span>自動計算(終了): <span id="prop-loop-end-auto">--:--.---</span></span>
+                                <div class="prop-details"><label>ループ開始時間: <input type="text" id="prop-loop-start" placeholder="mm:ss.sss"></label></div>
+                                <div class="prop-details"><label>ループ終了時間: <input type="text" id="prop-loop-end" placeholder="mm:ss.sss"></label></div>
+                                <div class="prop-details readonly"><span>自動計算(開始): <span id="prop-loop-start-auto">--:--.---</span></span></div>
+                                <div class="prop-details readonly"><span>自動計算(終了): <span id="prop-loop-end-auto">--:--.---</span></span></div>
+                            </div>
+                        </div>
+
+                        <!-- 歌詞設定 -->
+                        <div id="lyrics-feature-container">
+                            <div class="prop-details"><label><input type="checkbox" id="prop-lyrics-compatible"> 歌詞の表示</label></div>
+                            <div id="lyrics-settings-panel" class="hidden">
+                                <div class="prop-details"><label>対応言語数: <input type="number" id="prop-lyrics-lang-count" min="1" value="1"></label></div>
+                                <div class="prop-details"><label>表示言語 (0~): <input type="number" id="prop-lyrics-current-lang" min="0" value="0"></label></div>
+                                <div class="prop-details"><label>言語名: <input type="text" id="prop-lyrics-lang-name"></label></div>
+                                <div class="lyrics-editor">
+                                    <textarea id="prop-lyrics-timings" placeholder="0.00&#10;5.25&#10;10.50"></textarea>
+                                    <textarea id="prop-lyrics-text" placeholder="一行目の歌詞&#10;二行目の歌詞&#10;三行目の歌詞"></textarea>
                                 </div>
                             </div>
                         </div>
-                        </div>
+                    </div>
+
                     <div id="folder-specific-settings">
                         <div class="prop-details"><label><input type="checkbox" id="prop-is-game"> Gameフォルダとしてマーク</label></div>
                     </div>
