@@ -4,7 +4,8 @@
     --list-button-height: 70px;
     --safe-area-bottom: env(safe-area-inset-bottom);
     --lyrics-controls-height: 90px;
-    --partial-lyrics-panel-height: calc((1.6em * 5 + 40px) * 1.25); 
+    /* 修正: 固定値に戻す（JSで高さを制御するため） */
+    --partial-lyrics-panel-height: calc(1.6em * 5 + 40px); 
     --lyrics-text-scale: 0.8;
 }
 body, html {
@@ -72,11 +73,12 @@ input[type="file"] { display: none; }
 .view-partial #player-main-ui .artwork-container { width: 20vw; max-width: 75px; }
 .view-partial #lyrics-container { 
     display: flex;
-    height: calc(var(--partial-lyrics-panel-height) + var(--lyrics-controls-height));
+    /* height はJSで設定するため削除 */
     flex-shrink: 0;
-    padding: 10px 0; /* 修正: 左右のpaddingを0に */
+    padding: 10px 0;
     width: 100%;
     box-sizing: border-box; 
+    transition: height 0.3s ease; /* スムーズな高さ変更のため */
 }
 .view-partial #partial-lyrics-display { display: flex; }
 .view-partial #full-lyrics-display { display: none; }
@@ -86,7 +88,7 @@ input[type="file"] { display: none; }
 .view-full #lyrics-container { 
     display: flex; 
     height: 100%; 
-    padding: 10px 0; /* 修正: 左右のpaddingを0に */
+    padding: 10px 0;
     width: 100%; 
     box-sizing: border-box; 
 }
@@ -106,7 +108,6 @@ input[type="file"] { display: none; }
     transform: scale(var(--lyrics-text-scale)); 
     transform-origin: top center;
 }
-/* ▼▼▼ 以下を追加: 歌詞表示モードの時に枠を画面幅いっぱいに ▼▼▼ */
 .view-partial .lyrics-panel,
 .view-full .lyrics-panel {
     border-left: none;
@@ -120,8 +121,9 @@ input[type="file"] { display: none; }
     font-size: 1.1em;
     line-height: 1.6;
     text-align: center;
-    height: var(--partial-lyrics-panel-height);
+    height: auto; /* 修正: JSで高さを制御するためautoに変更 */
     flex-grow: 0;
+    transition: height 0.3s ease; /* スムーズな高さ変更のため */
 }
 #partial-lyrics-display p { margin: 0.1em 0; color: #888; transition: color 0.3s, font-size 0.3s; }
 #partial-lyrics-display p.current-lyric { color: #fff; font-weight: bold; font-size: 1.2em; }
