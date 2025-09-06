@@ -1,7 +1,7 @@
 // =================================================================
 // Application Version
 // =================================================================
-const APP_VERSION = 'v.3.4.11'; // Improved lyrics UI and settings panel layout
+const APP_VERSION = 'v.3.4.12'; // Improved lyrics UI and settings panel layout
 
 // =================================================================
 // HTML Element Acquisition
