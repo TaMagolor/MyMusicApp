@@ -4,7 +4,8 @@
     --list-button-height: 70px;
     --safe-area-bottom: env(safe-area-inset-bottom);
     --lyrics-controls-height: 90px;
-    --partial-lyrics-panel-height: calc(1.6em * 5 + 30px);
+    /* 修正: 歌詞の一部表示パネルの高さを調整 */
+    --partial-lyrics-panel-height: calc(1.6em * 5 + 40px); /* 上下10pxずつ追加 */
 }
 body, html {
     margin: 0; padding: 0; width: 100%; height: 100%;
@@ -104,7 +105,7 @@ input[type="file"] { display: none; }
     font-size: 1.1em;
     line-height: 1.6;
     text-align: center;
-    /* ▼▼▼ 追加: パネルの高さを固定 ▼▼▼ */
+    /* ▼▼▼ 修正: パネルの高さを固定 ▼▼▼ */
     height: var(--partial-lyrics-panel-height);
     flex-grow: 0;
 }
@@ -151,9 +152,28 @@ input[type="file"] { display: none; }
 }
 .prop-details.readonly span { color: #aaa; font-size: 0.9em; }
 #loop-settings-panel, #lyrics-settings-panel { border-left: 3px solid #555; padding-left: 10px; margin-top: 15px; }
-.lyrics-editor { display: flex; gap: 10px; height: 150px; }
-.lyrics-editor textarea { flex: 1; height: 100%; background-color: #333; border: 1px solid #555; color: #fff; border-radius: 5px; padding: 8px; font-family: monospace; resize: none; }
-#prop-lyrics-timings { flex-basis: 100px; flex-grow: 0; text-align: right; }
+.lyrics-editor { display: flex; gap: 10px; /* height: 150px; */ flex-direction: column; } /* flex-direction: column を追加 */
+.lyrics-editor textarea { 
+    flex: 1; 
+    height: auto; /* 修正: 高さを自動調整 */
+    min-height: 100px; /* 修正: 最小高さを設定 */
+    background-color: #333; 
+    border: 1px solid #555; 
+    color: #fff; 
+    border-radius: 5px; 
+    padding: 8px; 
+    font-family: monospace; 
+    resize: vertical; /* 垂直方向のリサイズのみ許可 */
+    overflow-y: hidden; /* 最初はスクロールバーを非表示にし、内容に合わせて拡張 */
+}
+/* テキストエリアの内容に応じて高さを調整するスクリプトが app.js に必要になる可能性あり。
+    CSSのみで対応する場合は overflow-y: auto; に戻すか、JavaScriptで調整する。
+    ここでは CSSのみで自動拡張する一般的な方法を採用。
+*/
+.lyrics-editor textarea:focus {
+    overflow-y: auto; /* フォーカス時にスクロールバーを表示 */
+}
+#prop-lyrics-timings { flex-basis: auto; flex-grow: 0; text-align: right; } /* flex-basis も auto に変更 */
 
 /* --- 共通ツリービュー --- */
 .tree-view ul { padding-left: 12px; list-style-type: none; }

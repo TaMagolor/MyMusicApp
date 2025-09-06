@@ -1,7 +1,7 @@
 // =================================================================
 // Application Version
 // =================================================================
-const APP_VERSION = 'v.3.4.8'; // Fixed lyrics UI and settings panel bugs
+const APP_VERSION = 'v.3.4.9'; // Fixed lyrics UI and settings panel bugs
 
 // =================================================================
 // HTML Element Acquisition
@@ -73,7 +73,7 @@ document.body.appendChild(loadingOverlay);
 let libraryFiles = [];
 let fileTree = {};
 let selectedItemPath = null;
-let isSelectedItemFolder = false;
+let isSelectedItemFolder = null; // nullで初期化
 let recentlyPlayed = [];
 let songProperties = {};
 let nextSongToPlay = null;
@@ -385,7 +385,7 @@ async function playSong(songRecord) {
     } else {
         playerFolderName.textContent = '全曲';
     }
-	const svgIcon = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='512' height='512'><rect width='24' height='24' fill='#7e57c2'/><path fill='white' d='M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z'/></svg>`;
+	const svgIcon = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='512' height='512'><rect width='24' height='24' fill='#7e57c2'/><path fill='white' d='M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4%201.79-4%204s1.79%204%204%204%204-1.79%204-4V7h4V3h-6z'/></svg>`;
 	const artworkURL = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgIcon)}`;
     playerArtwork.src = artworkURL;
 
@@ -610,9 +610,11 @@ function updateLyricsDisplay() {
 function renderPartialLyrics(currentIndex) {
     const lines = currentLyricsData.languages[currentLyricsLang].lines;
     let content = '';
+    // 現在の行を中心に前後2行、合計5行を表示
     for (let i = -2; i <= 2; i++) {
         const lineIndex = currentIndex + i;
-        const line = (lineIndex >= 0 && lineIndex < lines.length) ? lines[lineIndex] : '&nbsp;';
+        // 行が存在しない場合も `&nbsp;` を表示して高さを維持
+        const line = (lineIndex >= 0 && lineIndex < lines.length && lines[lineIndex].trim() !== '') ? lines[lineIndex] : '&nbsp;';
         const className = (i === 0) ? 'current-lyric' : '';
         content += `<p class="${className}">${line}</p>`;
     }
@@ -632,7 +634,7 @@ function highlightFullLyrics(currentIndex) {
         const nextLineElement = fullLyricsDisplay.querySelector(`p[data-line-index="${currentIndex}"]`);
         if (nextLineElement) {
             nextLineElement.classList.add('current-lyric');
-            nextLineElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // nextLineElement.scrollIntoView({ behavior: 'smooth', block: 'center' }); // 自動スクロールを廃止
         }
     }
 }
@@ -952,4 +954,3 @@ function updateMediaPosition() {
         });
     }
 }
-
