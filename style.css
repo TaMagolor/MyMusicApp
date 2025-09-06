@@ -4,8 +4,8 @@
     --list-button-height: 70px;
     --safe-area-bottom: env(safe-area-inset-bottom);
     --lyrics-controls-height: 90px;
-    /* 修正: 折り返しに対応できる、余裕を持たせた固定の高さを設定 */
-    --partial-lyrics-panel-height: calc(1.6em * 7 + 50px); 
+    /* 修正: さらに2行分高くし、合計9行分程度の高さを確保 */
+    --partial-lyrics-panel-height: calc(1.6em * 9 + 50px); 
     --lyrics-text-scale: 0.8;
 }
 body, html {
@@ -120,7 +120,7 @@ input[type="file"] { display: none; }
     font-size: 1.1em;
     line-height: 1.6;
     text-align: center;
-    height: var(--partial-lyrics-panel-height); /* 修正: CSS変数から固定の高さを設定 */
+    height: var(--partial-lyrics-panel-height);
     flex-grow: 0;
 }
 #partial-lyrics-display p { margin: 0.1em 0; color: #888; transition: color 0.3s, font-size 0.3s; }

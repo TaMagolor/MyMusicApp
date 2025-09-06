@@ -1,7 +1,7 @@
 // =================================================================
 // Application Version
 // =================================================================
-const APP_VERSION = 'v.3.4.15'; // Reverted to CSS-based height for partial lyrics view to fix bugs
+const APP_VERSION = 'v.3.4.16'; // Finalized partial lyrics view layout
 
 // =================================================================
 // HTML Element Acquisition
@@ -605,45 +605,25 @@ function updateLyricsDisplay() {
     }
 
     if (currentPlayerView === 'partial') {
-        // 修正: ハイライトの更新のみを行う
-        highlightPartialLyrics(currentIndex);
+        renderPartialLyrics(currentIndex); // 修正: シンプルな描画関数を呼ぶ
     } else if (currentPlayerView === 'full') {
         highlightFullLyrics(currentIndex);
     }
 }
 
-// 修正: 歌詞ブロック全体の再描画とハイライト更新を分離
+// 修正: シンプルなHTML更新のみを行う関数に戻す
 function renderPartialLyrics(currentIndex) {
     const lines = currentLyricsData.languages[currentLyricsLang].lines;
     let content = '';
+    // 現在行を中心に、前後2行（合計5行）を描画
     for (let i = -2; i <= 2; i++) {
         const lineIndex = currentIndex + i;
         const line = (lineIndex >= 0 && lineIndex < lines.length && lines[lineIndex]) ? lines[lineIndex] : '&nbsp;';
-        // idを追加して、後からハイライトできるようにする
-        content += `<p id="partial-lyric-line-${i + 2}" class="${(i === 0) ? 'current-lyric' : ''}">${line}</p>`;
+        const className = (i === 0) ? 'current-lyric' : '';
+        content += `<p class="${className}">${line}</p>`;
     }
     partialLyricsDisplay.innerHTML = content;
 }
-
-// 修正: ハイライトのみを更新する新しい関数
-function highlightPartialLyrics(currentIndex) {
-    // 5行の歌詞ブロックの内容自体が変わったか（=中央行が変わったか）をチェック
-    const centerLineIndex = (currentIndex % 5) - 2;
-    if (partialLyricsDisplay.dataset.centerIndex !== String(currentIndex - centerLineIndex)) {
-        renderPartialLyrics(currentIndex - centerLineIndex);
-        partialLyricsDisplay.dataset.centerIndex = String(currentIndex - centerLineIndex);
-    }
-
-    // ハイライトを更新
-    for (let i = 0; i < 5; i++) {
-        const lineElement = document.getElementById(`partial-lyric-line-${i}`);
-        if (lineElement) {
-            const lineIndexInData = (parseInt(partialLyricsDisplay.dataset.centerIndex, 10) || 0) + i - 2;
-            lineElement.classList.toggle('current-lyric', lineIndexInData === currentIndex);
-        }
-    }
-}
-
 
 function renderFullLyrics() {
     const lines = currentLyricsData.languages[currentLyricsLang].lines;
