@@ -12,9 +12,7 @@
 <body>
     <main id="app-container">
 
-        <!-- ▼▼▼ 1. プレイヤー画面 ▼▼▼ -->
         <div id="player-screen" class="screen active view-normal">
-            <!-- 通常・一部表示で共有するプレイヤーUI -->
             <div id="player-main-ui">
                 <div class="player-content">
                     <div id="player-folder-name-container" class="player-info-text">
@@ -43,8 +41,7 @@
                 </div>
             </div>
 
-            <!-- 歌詞表示UIコンテナ -->
-            <div id="lyrics-container">
+            <div id="lyrics-container" class="hidden">
                 <div id="partial-lyrics-display" class="lyrics-view lyrics-panel"></div>
                 <div id="full-lyrics-display" class="lyrics-view scrollable-content lyrics-panel"></div>
                 <div id="lyrics-controls">
@@ -58,7 +55,6 @@
             </div>
         </div>
 
-        <!-- ▼▼▼ 2. 一覧画面 (変更なし) ▼▼▼ -->
         <div id="list-screen" class="screen">
             <div id="list-tree-view-container" class="scrollable-content tree-view"></div>
             <div class="fixed-bottom-button-container">
@@ -66,7 +62,6 @@
             </div>
         </div>
 
-        <!-- ▼▼▼ 3. 全体設定画面 (変更なし) ▼▼▼ -->
         <div id="settings-screen" class="screen">
             <div id="main-settings" class="settings-view active">
                 <div class="settings-button-group">
@@ -131,4 +126,3 @@
     <script src="app.js"></script>
 </body>
 </html>
-
