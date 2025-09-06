@@ -1,12 +1,10 @@
 // =================================================================
 // Application Version
-// バージョン
 // =================================================================
-const APP_VERSION = 'v.3.4.1'; // Added Lyrics Feature
+const APP_VERSION = 'v.3.4.2'; // Fixed lyrics UI and settings panel bugs
 
 // =================================================================
 // HTML Element Acquisition
-// HTMLエレメントの取得
 // =================================================================
 const playerScreen = document.getElementById('player-screen');
 const listScreen = document.getElementById('list-screen');
@@ -71,7 +69,6 @@ document.body.appendChild(loadingOverlay);
 
 // =================================================================
 // Global Variables
-// グロ－バル変数
 // =================================================================
 let libraryFiles = [];
 let fileTree = {};
@@ -83,16 +80,10 @@ let nextSongToPlay = null;
 let activeRandomFolderPath = null;
 let durabilityMode = { enabled: false, duration: 0 };
 let currentLoopInfo = null;
-// --- Lyrics ---
 let lyricsUpdateInterval = null;
 let currentLyricsData = null;
 let currentLyricsLang = 0;
-let currentPlayerView = 'normal'; // 'normal', 'partial', 'full'
-
-// =================================================================
-// Crossfade Audio System Variables
-// クロスフェードのグローバル変数
-// =================================================================
+let currentPlayerView = 'normal';
 let audioContext;
 let crossfadePlayer;
 let sourceMain, sourceCrossfade;
@@ -105,7 +96,6 @@ const CROSSFADE_DURATION = 1.0;
 
 // =================================================================
 // Application Initialization
-// 初期化
 // =================================================================
 window.addEventListener('load', async () => {
 	console.log('App loading...');
@@ -118,7 +108,6 @@ window.addEventListener('load', async () => {
 
 // =================================================================
 // Event Listeners
-// イベントリスナー
 // =================================================================
 navPlayerButton.addEventListener('click', () => switchScreen('player'));
 navListButton.addEventListener('click', () => switchScreen('list'));
@@ -143,16 +132,14 @@ exportButton.addEventListener('click', handleExport);
 importInput.addEventListener('change', handleImport);
 audioPlayer.addEventListener('timeupdate', handleTimeUpdate);
 propLoopCompatible.addEventListener('change', handleLoopCompatibleChange);
-// --- Lyrics ---
 propLyricsCompatible.addEventListener('change', handleLyricsCompatibleChange);
-propLyricsLangCount.addEventListener('change', () => showPropertiesPanel());
-propLyricsCurrentLang.addEventListener('change', () => showPropertiesPanel(false));
+propLyricsLangCount.addEventListener('change', handleLyricsSettingChange);
+propLyricsCurrentLang.addEventListener('change', handleLyricsSettingChange);
 lyricsViewToggle.addEventListener('click', handleViewToggle);
 lyricsLanguageSelector.addEventListener('click', handleLanguageChange);
 
 // =================================================================
 // Event Handler Functions
-// イベントハンドラ
 // =================================================================
 async function handleFileInputChange(event) {
     const files = Array.from(event.target.files);
@@ -188,7 +175,6 @@ async function handleSaveProperties() {
 		const parsedMultiplier = parseFloat(propMultiplier.value);
 		props.multiplier = !isNaN(parsedMultiplier) ? parsedMultiplier : 1.0;
         
-        // Loop properties
         props.isLoopCompatible = propLoopCompatible.checked;
         if (props.isLoopCompatible) {
             props.isLoopTimeLocked = propLoopTimeLocked.checked;
@@ -200,21 +186,18 @@ async function handleSaveProperties() {
             delete props.loopEndTime;
         }
         
-        // Lyrics properties
         props.showLyrics = propLyricsCompatible.checked;
         if (props.showLyrics) {
-            saveCurrentLyricsLanguage(props); // Save currently displayed language data
+            const langIndex = parseInt(propLyricsCurrentLang.value, 10);
+            saveCurrentLyricsLanguage(props, langIndex);
             props.lyricsLangCount = parseInt(propLyricsLangCount.value, 10) || 1;
             
             const timings = propLyricsTimings.value.split('\n').map(t => parseFloat(t)).filter(t => !isNaN(t));
             
-            // Reconstruct the main data structure based on timings
-            // This ensures timings array and lyricsData array are always in sync
             props.lyricsData = timings.map((time, index) => {
                 const existingLineData = (props.lyricsData || [])[index] || { time: 0, lines: [] };
                 return { time: time, lines: existingLineData.lines };
             });
-
         } else {
             delete props.lyricsLangCount;
             delete props.lyricsLangNames;
@@ -263,6 +246,16 @@ function handleLoopCompatibleChange() {
     const isChecked = propLoopCompatible.checked;
     loopLockContainer.classList.toggle('hidden', !isChecked);
     loopSettingsPanel.classList.toggle('hidden', !isChecked);
+}
+
+function handleLyricsSettingChange() {
+    const props = songProperties[selectedItemPath] || {};
+    if (!props) return;
+    const previousLangIndex = parseInt(propLyricsCurrentLang.dataset.previousValue || '0', 10);
+    saveCurrentLyricsLanguage(props, previousLangIndex);
+    props.lyricsLangCount = parseInt(propLyricsLangCount.value, 10);
+    songProperties[selectedItemPath] = props;
+    showPropertiesPanel(false);
 }
 
 function handleLyricsCompatibleChange() {
@@ -408,7 +401,6 @@ async function playSong(songRecord) {
 		} catch (error) { console.log('seekto is not supported.'); }
 	}
     
-    // --- Lyrics Handling ---
     if (lyricsUpdateInterval) clearInterval(lyricsUpdateInterval);
     if (props.showLyrics && props.lyricsData && props.lyricsData.length > 0) {
         currentLyricsData = {
@@ -419,13 +411,13 @@ async function playSong(songRecord) {
             }))
         };
         currentLyricsLang = 0;
-        lyricsContainer.classList.remove('hidden');
+        lyricsContainer.style.display = 'flex';
         setupLyricsControls(currentLyricsData.languages);
         switchLyricsView('normal');
         lyricsUpdateInterval = setInterval(updateLyricsDisplay, 250);
     } else {
         currentLyricsData = null;
-        lyricsContainer.classList.add('hidden');
+        lyricsContainer.style.display = 'none';
         switchLyricsView('normal');
     }
 }
@@ -496,9 +488,6 @@ function setDurabilityMode(durationInSeconds) {
     }
 }
 
-// =================================================================
-// Crossfade and Loop Handling Functions
-// =================================================================
 function initializeAudioSystem() {
     crossfadePlayer = document.getElementById('crossfadePlayer');
     activePlayer = audioPlayer;
@@ -564,9 +553,6 @@ function completeCrossfade() {
     if (durabilityMode.enabled && currentLoopInfo) startLoopMonitoring();
 }
 
-// =================================================================
-// Lyrics Specific Functions (New)
-// =================================================================
 function handleViewToggle(event) {
     if (event.target.tagName === 'BUTTON') {
         switchLyricsView(event.target.dataset.view);
@@ -576,15 +562,15 @@ function handleViewToggle(event) {
 function switchLyricsView(view) {
     currentPlayerView = view;
     playerScreen.className = 'screen active';
-    if (view === 'partial') {
-        playerScreen.classList.add('partial-view');
-    } else if (view === 'full') {
-        playerScreen.classList.add('full-view');
-        renderFullLyrics();
-    }
+    playerScreen.classList.add(`view-${view}`);
+    
     lyricsViewToggle.querySelectorAll('button').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.view === view);
     });
+
+    if (view === 'full') {
+        renderFullLyrics();
+    }
     updateLyricsDisplay();
 }
 
@@ -655,10 +641,8 @@ function setupLyricsControls(languages) {
     ).join('');
 }
 
-function saveCurrentLyricsLanguage(props) {
+function saveCurrentLyricsLanguage(props, langIndex) {
     if (!props.showLyrics) return;
-
-    const langIndex = parseInt(propLyricsCurrentLang.value, 10);
     
     props.lyricsLangNames = props.lyricsLangNames || [];
     props.lyricsData = props.lyricsData || [];
@@ -795,7 +779,6 @@ function showPropertiesPanel(resetData = true) {
         propDisplayName.value = props.name || '';
         propMultiplier.value = (typeof props.multiplier === 'number') ? props.multiplier : 1.0;
         
-        // Loop Panel Logic
         const isLoop = props.isLoopCompatible || false;
         propLoopCompatible.checked = isLoop;
         loopLockContainer.classList.toggle('hidden', !isLoop);
@@ -806,10 +789,10 @@ function showPropertiesPanel(resetData = true) {
             propLoopEnd.value = formatTime(props.loopEndTime);
         }
 
-        // Lyrics Panel Logic
         const showLyrics = props.showLyrics || false;
         propLyricsCompatible.checked = showLyrics;
         lyricsSettingsPanel.classList.toggle('hidden', !showLyrics);
+
         if (showLyrics) {
             if (resetData) {
                 propLyricsLangCount.value = props.lyricsLangCount || 1;
@@ -817,11 +800,14 @@ function showPropertiesPanel(resetData = true) {
             }
             const langIndex = parseInt(propLyricsCurrentLang.value, 10);
             const langCount = parseInt(propLyricsLangCount.value, 10);
+            
             if (langIndex >= langCount) {
                 propLyricsCurrentLang.value = langCount - 1;
                 showPropertiesPanel(false);
                 return;
             }
+            propLyricsCurrentLang.dataset.previousValue = langIndex;
+
             propLyricsLangName.value = (props.lyricsLangNames || [])[langIndex] || '';
             const lyricsData = props.lyricsData || [];
             propLyricsTimings.value = lyricsData.map(d => d.time).join('\n');
