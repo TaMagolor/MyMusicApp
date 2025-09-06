@@ -1,7 +1,7 @@
 // =================================================================
 // Application Version
 // =================================================================
-const APP_VERSION = 'v.3.4.4'; // Fixed lyrics UI and settings panel bugs
+const APP_VERSION = 'v.3.4.6'; // Fixed lyrics UI and settings panel bugs
 
 // =================================================================
 // HTML Element Acquisition
@@ -411,13 +411,13 @@ async function playSong(songRecord) {
             }))
         };
         currentLyricsLang = 0;
-        lyricsContainer.style.display = 'flex';
+        lyricsContainer.classList.remove('hidden');
         setupLyricsControls(currentLyricsData.languages);
         switchLyricsView('normal');
         lyricsUpdateInterval = setInterval(updateLyricsDisplay, 250);
     } else {
         currentLyricsData = null;
-        lyricsContainer.style.display = 'none';
+        lyricsContainer.classList.add('hidden');
         switchLyricsView('normal');
     }
 }
