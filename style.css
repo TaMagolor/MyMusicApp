@@ -4,11 +4,13 @@
     --list-button-height: 70px;
     --safe-area-bottom: env(safe-area-inset-bottom);
     --lyrics-controls-height: 90px;
-    --partial-lyrics-panel-height: calc(1.6em * 5 + 40px);
+    /* 修正: 歌詞の枠の高さ計算を調整（25%延長） */
+    --partial-lyrics-panel-height: calc((1.6em * 5 + 40px) * 1.25); 
+    --lyrics-text-scale: 0.8; /* 新規: 歌詞テキストの拡大率 */
 }
 body, html {
     margin: 0; padding: 0; width: 100%; height: 100%;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    font-family: -apple-system, BlinkMacMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
     background-color: #000; color: #fff;
     overflow: hidden; -webkit-user-select: none; user-select: none;
 }
@@ -67,13 +69,13 @@ input[type="file"] { display: none; }
 /* 1-b. 歌詞の一部表示 */
 .view-partial { justify-content: flex-start; }
 .view-partial #player-main-ui { flex-grow: 0; flex-shrink: 0; }
-.view-partial .player-content { height: auto; padding: 20px 20px 10px 20px; gap: 8px; } /* 修正: 下のpaddingを調整 */
-.view-partial #player-main-ui .artwork-container { width: 40vw; max-width: 150px; }
+.view-partial .player-content { height: auto; padding: 20px 20px 0 20px; gap: 8px; }
+.view-partial #player-main-ui .artwork-container { width: 20vw; max-width: 75px; }
 .view-partial #lyrics-container { 
     display: flex;
     height: calc(var(--partial-lyrics-panel-height) + var(--lyrics-controls-height));
     flex-shrink: 0;
-    padding: 0 10px 10px 10px; /* 修正: 上のpaddingを0に */
+    padding: 10px 10px 10px 10px;
     width: 100%;
     box-sizing: border-box; 
 }
@@ -88,7 +90,7 @@ input[type="file"] { display: none; }
 
 /* --- 歌詞表示UIのスタイル --- */
 #lyrics-container { flex-direction: column; overflow: hidden; }
-.lyrics-view { flex-grow: 1; overflow: auto; } /* 修正: overflow: hidden から auto へ変更 */
+.lyrics-view { flex-grow: 1; overflow: auto; }
 .lyrics-panel {
     background-color: rgba(30, 30, 30, 0.7);
     border: 1px solid #444;
@@ -96,6 +98,9 @@ input[type="file"] { display: none; }
     padding: 15px;
     box-sizing: border-box;
     height: 100%;
+    /* 修正: 歌詞全体の表示サイズを80%に */
+    transform: scale(var(--lyrics-text-scale)); 
+    transform-origin: top center; /* 上中央を基準に縮小 */
 }
 #partial-lyrics-display {
     flex-direction: column;
@@ -150,31 +155,30 @@ input[type="file"] { display: none; }
 }
 .prop-details.readonly span { color: #aaa; font-size: 0.9em; }
 #loop-settings-panel, #lyrics-settings-panel { border-left: 3px solid #555; padding-left: 10px; margin-top: 15px; }
-/* ▼▼▼ 歌詞エディタのレイアウトを修正 ▼▼▼ */
 .lyrics-editor {
     display: flex;
-    flex-direction: row; /* 横並びに変更 */
+    flex-direction: row;
     gap: 10px;
-    align-items: stretch; /* 高さを揃える */
-    min-height: 150px; /* コンテナの最小高さを設定 */
+    align-items: stretch;
+    min-height: 150px;
 }
 .lyrics-editor textarea {
-    height: auto; /* JSで高さを制御するためautoに */
+    height: auto;
     background-color: #333;
     border: 1px solid #555;
     color: #fff;
     border-radius: 5px;
     padding: 8px;
     font-family: monospace;
-    resize: none; /* リサイズを無効化 */
-    overflow-y: hidden; /* スクロールバーを隠す */
+    resize: none;
+    overflow-y: hidden;
 }
 #prop-lyrics-timings {
-    flex: 0 0 120px; /* 左側の幅を固定 */
+    flex: 0 0 120px;
     text-align: right;
 }
 #prop-lyrics-text {
-    flex: 1 1 auto; /* 右側が残りの幅をすべて使用 */
+    flex: 1 1 auto;
 }
 
 /* --- 共通ツリービュー --- */
