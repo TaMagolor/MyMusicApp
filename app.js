@@ -1,10 +1,12 @@
 // =================================================================
 // Application Version
+// バージョン
 // =================================================================
-const APP_VERSION = 'v.3.4.0'; // Added Lyrics Feature
+const APP_VERSION = 'v.3.4.1'; // Added Lyrics Feature
 
 // =================================================================
 // HTML Element Acquisition
+// HTMLエレメントの取得
 // =================================================================
 const playerScreen = document.getElementById('player-screen');
 const listScreen = document.getElementById('list-screen');
@@ -48,8 +50,6 @@ const propLoopStart = document.getElementById('prop-loop-start');
 const propLoopEnd = document.getElementById('prop-loop-end');
 const propLoopStartAuto = document.getElementById('prop-loop-start-auto');
 const propLoopEndAuto = document.getElementById('prop-loop-end-auto');
-
-// --- Lyrics Feature Elements ---
 const playerMainUI = document.getElementById('player-main-ui');
 const lyricsContainer = document.getElementById('lyrics-container');
 const partialLyricsDisplay = document.getElementById('partial-lyrics-display');
@@ -63,7 +63,6 @@ const propLyricsCurrentLang = document.getElementById('prop-lyrics-current-lang'
 const propLyricsLangName = document.getElementById('prop-lyrics-lang-name');
 const propLyricsTimings = document.getElementById('prop-lyrics-timings');
 const propLyricsText = document.getElementById('prop-lyrics-text');
-
 const loadingOverlay = document.createElement('div');
 loadingOverlay.id = 'loading-overlay';
 loadingOverlay.innerHTML = '<div>データを処理中...</div>';
@@ -72,6 +71,7 @@ document.body.appendChild(loadingOverlay);
 
 // =================================================================
 // Global Variables
+// グロ－バル変数
 // =================================================================
 let libraryFiles = [];
 let fileTree = {};
@@ -83,7 +83,6 @@ let nextSongToPlay = null;
 let activeRandomFolderPath = null;
 let durabilityMode = { enabled: false, duration: 0 };
 let currentLoopInfo = null;
-
 // --- Lyrics ---
 let lyricsUpdateInterval = null;
 let currentLyricsData = null;
@@ -92,6 +91,7 @@ let currentPlayerView = 'normal'; // 'normal', 'partial', 'full'
 
 // =================================================================
 // Crossfade Audio System Variables
+// クロスフェードのグローバル変数
 // =================================================================
 let audioContext;
 let crossfadePlayer;
@@ -105,6 +105,7 @@ const CROSSFADE_DURATION = 1.0;
 
 // =================================================================
 // Application Initialization
+// 初期化
 // =================================================================
 window.addEventListener('load', async () => {
 	console.log('App loading...');
@@ -117,6 +118,7 @@ window.addEventListener('load', async () => {
 
 // =================================================================
 // Event Listeners
+// イベントリスナー
 // =================================================================
 navPlayerButton.addEventListener('click', () => switchScreen('player'));
 navListButton.addEventListener('click', () => switchScreen('list'));
@@ -141,9 +143,8 @@ exportButton.addEventListener('click', handleExport);
 importInput.addEventListener('change', handleImport);
 audioPlayer.addEventListener('timeupdate', handleTimeUpdate);
 propLoopCompatible.addEventListener('change', handleLoopCompatibleChange);
-
 // --- Lyrics ---
-propLyricsCompatible.addEventListener('change', () => showPropertiesPanel());
+propLyricsCompatible.addEventListener('change', handleLyricsCompatibleChange);
 propLyricsLangCount.addEventListener('change', () => showPropertiesPanel());
 propLyricsCurrentLang.addEventListener('change', () => showPropertiesPanel(false));
 lyricsViewToggle.addEventListener('click', handleViewToggle);
@@ -151,6 +152,7 @@ lyricsLanguageSelector.addEventListener('click', handleLanguageChange);
 
 // =================================================================
 // Event Handler Functions
+// イベントハンドラ
 // =================================================================
 async function handleFileInputChange(event) {
     const files = Array.from(event.target.files);
@@ -261,6 +263,10 @@ function handleLoopCompatibleChange() {
     const isChecked = propLoopCompatible.checked;
     loopLockContainer.classList.toggle('hidden', !isChecked);
     loopSettingsPanel.classList.toggle('hidden', !isChecked);
+}
+
+function handleLyricsCompatibleChange() {
+    lyricsSettingsPanel.classList.toggle('hidden', !propLyricsCompatible.checked);
 }
 
 function handleTimeUpdate() {
