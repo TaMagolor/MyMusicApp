@@ -4,8 +4,8 @@
     --list-button-height: 70px;
     --safe-area-bottom: env(safe-area-inset-bottom);
     --lyrics-controls-height: 90px;
-    /* 修正: 固定値に戻す（JSで高さを制御するため） */
-    --partial-lyrics-panel-height: calc(1.6em * 5 + 40px); 
+    /* 修正: 折り返しに対応できる、余裕を持たせた固定の高さを設定 */
+    --partial-lyrics-panel-height: calc(1.6em * 7 + 50px); 
     --lyrics-text-scale: 0.8;
 }
 body, html {
@@ -73,12 +73,11 @@ input[type="file"] { display: none; }
 .view-partial #player-main-ui .artwork-container { width: 20vw; max-width: 75px; }
 .view-partial #lyrics-container { 
     display: flex;
-    /* height はJSで設定するため削除 */
+    height: calc(var(--partial-lyrics-panel-height) + var(--lyrics-controls-height));
     flex-shrink: 0;
     padding: 10px 0;
     width: 100%;
     box-sizing: border-box; 
-    transition: height 0.3s ease; /* スムーズな高さ変更のため */
 }
 .view-partial #partial-lyrics-display { display: flex; }
 .view-partial #full-lyrics-display { display: none; }
@@ -121,9 +120,8 @@ input[type="file"] { display: none; }
     font-size: 1.1em;
     line-height: 1.6;
     text-align: center;
-    height: auto; /* 修正: JSで高さを制御するためautoに変更 */
+    height: var(--partial-lyrics-panel-height); /* 修正: CSS変数から固定の高さを設定 */
     flex-grow: 0;
-    transition: height 0.3s ease; /* スムーズな高さ変更のため */
 }
 #partial-lyrics-display p { margin: 0.1em 0; color: #888; transition: color 0.3s, font-size 0.3s; }
 #partial-lyrics-display p.current-lyric { color: #fff; font-weight: bold; font-size: 1.2em; }

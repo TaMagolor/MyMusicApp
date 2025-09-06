@@ -1,7 +1,7 @@
 // =================================================================
 // Application Version
 // =================================================================
-const APP_VERSION = 'v.3.4.14'; // Fixed partial lyrics view rendering bug
+const APP_VERSION = 'v.3.4.15'; // Reverted to CSS-based height for partial lyrics view to fix bugs
 
 // =================================================================
 // HTML Element Acquisition
@@ -85,7 +85,6 @@ let lyricsUpdateInterval = null;
 let currentLyricsData = null;
 let currentLyricsLang = 0;
 let currentPlayerView = 'normal';
-let lastRenderedLyricIndex = -1; // 追加: 最後に描画した歌詞行のインデックス
 let audioContext;
 let crossfadePlayer;
 let sourceMain, sourceCrossfade;
@@ -418,7 +417,6 @@ async function playSong(songRecord) {
             }))
         };
         currentLyricsLang = 0;
-        lastRenderedLyricIndex = -1; // 修正: リセット
         lyricsContainer.classList.remove('hidden');
         setupLyricsControls(currentLyricsData.languages);
         switchLyricsView('normal');
@@ -576,13 +574,6 @@ function switchLyricsView(view) {
         btn.classList.toggle('active', btn.dataset.view === view);
     });
 
-    if (view !== 'partial') {
-        partialLyricsDisplay.style.height = '';
-        lyricsContainer.style.height = '';
-    } else {
-        lastRenderedLyricIndex = -1; // 修正: view切り替え時にリセット
-    }
-
     if (view === 'full') {
         renderFullLyrics();
     }
@@ -592,7 +583,6 @@ function switchLyricsView(view) {
 function handleLanguageChange(event) {
     if (event.target.tagName === 'BUTTON') {
         currentLyricsLang = parseInt(event.target.dataset.lang, 10);
-        lastRenderedLyricIndex = -1; // 修正: 言語切り替え時にリセット
         lyricsLanguageSelector.querySelectorAll('button').forEach(btn => {
             btn.classList.toggle('active', parseInt(btn.dataset.lang, 10) === currentLyricsLang);
         });
@@ -615,34 +605,45 @@ function updateLyricsDisplay() {
     }
 
     if (currentPlayerView === 'partial') {
-        renderPartialLyrics(currentIndex);
+        // 修正: ハイライトの更新のみを行う
+        highlightPartialLyrics(currentIndex);
     } else if (currentPlayerView === 'full') {
         highlightFullLyrics(currentIndex);
     }
 }
 
+// 修正: 歌詞ブロック全体の再描画とハイライト更新を分離
 function renderPartialLyrics(currentIndex) {
-    // 修正: 描画する歌詞が変わらない場合は、処理を中断
-    if (currentIndex === lastRenderedLyricIndex) return;
-    lastRenderedLyricIndex = currentIndex;
-
     const lines = currentLyricsData.languages[currentLyricsLang].lines;
     let content = '';
     for (let i = -2; i <= 2; i++) {
         const lineIndex = currentIndex + i;
         const line = (lineIndex >= 0 && lineIndex < lines.length && lines[lineIndex]) ? lines[lineIndex] : '&nbsp;';
-        const className = (i === 0) ? 'current-lyric' : '';
-        content += `<p class="${className}">${line}</p>`;
+        // idを追加して、後からハイライトできるようにする
+        content += `<p id="partial-lyric-line-${i + 2}" class="${(i === 0) ? 'current-lyric' : ''}">${line}</p>`;
     }
     partialLyricsDisplay.innerHTML = content;
-
-    const contentHeight = partialLyricsDisplay.scrollHeight;
-    const panelHeight = contentHeight + 30;
-
-    partialLyricsDisplay.style.height = `${panelHeight}px`;
-    const controlsHeight = lyricsControls.offsetHeight;
-    lyricsContainer.style.height = `${panelHeight + controlsHeight}px`;
 }
+
+// 修正: ハイライトのみを更新する新しい関数
+function highlightPartialLyrics(currentIndex) {
+    // 5行の歌詞ブロックの内容自体が変わったか（=中央行が変わったか）をチェック
+    const centerLineIndex = (currentIndex % 5) - 2;
+    if (partialLyricsDisplay.dataset.centerIndex !== String(currentIndex - centerLineIndex)) {
+        renderPartialLyrics(currentIndex - centerLineIndex);
+        partialLyricsDisplay.dataset.centerIndex = String(currentIndex - centerLineIndex);
+    }
+
+    // ハイライトを更新
+    for (let i = 0; i < 5; i++) {
+        const lineElement = document.getElementById(`partial-lyric-line-${i}`);
+        if (lineElement) {
+            const lineIndexInData = (parseInt(partialLyricsDisplay.dataset.centerIndex, 10) || 0) + i - 2;
+            lineElement.classList.toggle('current-lyric', lineIndexInData === currentIndex);
+        }
+    }
+}
+
 
 function renderFullLyrics() {
     const lines = currentLyricsData.languages[currentLyricsLang].lines;
