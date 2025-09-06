@@ -1,7 +1,7 @@
 // =================================================================
 // Application Version
 // =================================================================
-const APP_VERSION = 'v.3.4.7'; // Fixed lyrics UI and settings panel bugs
+const APP_VERSION = 'v.3.4.8'; // Fixed lyrics UI and settings panel bugs
 
 // =================================================================
 // HTML Element Acquisition
@@ -137,6 +137,8 @@ propLyricsLangCount.addEventListener('change', handleLyricsSettingChange);
 propLyricsCurrentLang.addEventListener('change', handleLyricsSettingChange);
 lyricsViewToggle.addEventListener('click', handleViewToggle);
 lyricsLanguageSelector.addEventListener('click', handleLanguageChange);
+audioPlayer.addEventListener('ended', handleSongEnd);
+crossfadePlayer.addEventListener('ended', handleSongEnd);
 
 // =================================================================
 // Event Handler Functions
