@@ -7,7 +7,7 @@
 }
 body, html {
     margin: 0; padding: 0; width: 100%; height: 100%;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, &#39;Segoe UI&#39;, Roboto, Oxygen, Ubuntu, Cantarell, &#39;Open Sans&#39;, &#39;Helvetica Neue&#39;, sans-serif;
     background-color: #000; color: #fff;
     overflow: hidden; -webkit-user-select: none; user-select: none;
 }
@@ -15,90 +15,148 @@ button, label.settings-button {
     padding: 12px 24px; font-size: 1em; border-radius: 25px; border: 1px solid #555;
     background-color: #2c2c2e; color: #fff; cursor: pointer; font-weight: 600;
 }
-input[type="file"] { display: none; }
+input[type=&quot;file&quot;] { display: none; }
 .hidden { display: none !important; }
 
-/* アプリ全体のコンテナ */
-#app-container {
-    width: 100%; height: calc(100% - var(--nav-height) - var(--safe-area-bottom));
-    overflow: hidden; position: relative;
+/\* アプリ全体のコンテナ \*/
+\#app-container {
+width: 100%; height: calc(100% - var(--nav-height) - var(--safe-area-bottom));
+overflow: hidden; position: relative;
 }
 .screen {
-    width: 100%; height: 100%; position: absolute; top: 0; left: 0;
-    display: none; flex-direction: column; overflow: hidden; background-color: #000;
+width: 100%; height: 100%; position: absolute; top: 0; left: 0;
+display: none; flex-direction: column; overflow: hidden; background-color: \#000;
 }
 .screen.active { display: flex; }
 .scrollable-content { overflow-y: auto; -webkit-overflow-scrolling: touch; overflow-x: hidden; }
 
-/* --- 1. プレイヤー画面 --- */
-#player-screen { justify-content: space-between; }
-#player-main-ui { width: 100%; transition: all 0.3s ease; }
+/\* --- 1. プレイヤー画面 --- \*/
+\#player-screen { justify-content: space-between; }
+\#player-main-ui { width: 100%; transition: all 0.3s ease; }
 .player-content { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; gap: 15px; height: 100%; box-sizing: border-box; }
-#player-main-ui .artwork-container { width: 75vw; max-width: 320px; aspect-ratio: 1 / 1; transition: width 0.3s ease; }
-#player-artwork { width: 100%; height: 100%; border-radius: 12px; object-fit: cover; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
-#audioPlayer, #crossfadePlayer { width: 90%; max-width: 400px; margin-top: 10px; }
+\#player-main-ui .artwork-container { width: 75vw; max-width: 320px; aspect-ratio: 1 / 1; transition: width 0.3s ease; }
+\#player-artwork { width: 100%; height: 100%; border-radius: 12px; object-fit: cover; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
+\#audioPlayer, \#crossfadePlayer { width: 90%; max-width: 400px; margin-top: 10px; }
 .player-info-text { text-align: center; width: 90%; }
+.song-title { font-size: 1.2em; font-weight: 600; }
+.game-title { font-size: 1em; color: \#aaa; }
+\#player-folder-name-container { font-size: 0.9em; color: \#888; text-align: left; width: 90%; max-width: 400px; }
+\#player-folder-name-container .folder-label { display: block; text-align: left; font-size: 0.9em; }
+\#player-folder-name { display: block; text-align: center; font-size: 1.1em; font-weight: bold; margin-top: 2px; }
 
-/* ▼▼▼ 表示モードごとのレイアウト ▼▼▼ */
-/* 1-a. 通常表示 */
-.view-normal #player-main-ui { flex-grow: 1; }
-.view-normal #lyrics-container { display: none; }
+/\* 耐久モードUI \*/
+\#durability-mode-container { position: relative; width: 90%; max-width: 400px; margin-top: 10px; }
+\#durability-mode-button { width: 100%; background-color: \#3a3a3c; }
+\#durability-options {
+position: absolute; bottom: 110%; left: 0; right: 0; background-color: \#2c2c2e;
+border-radius: 12px; padding: 8px; box-shadow: 0 -4px 12px rgba(0,0,0,0.4);
+display: flex; flex-direction: column; gap: 5px; z-index: 10;
+}
+\#durability-options button { width: 100%; text-align: center; background-color: \#3a3a3c; border: none; border-radius: 8px; padding: 10px; font-size: 0.9em; }
 
-/* 1-b. 歌詞の一部表示 */
-.view-partial { justify-content: flex-start; } /* 上から配置 */
-.view-partial #player-main-ui { flex-grow: 0; flex-shrink: 0; }
+/\* ▼▼▼ プレイヤー画面の表示モードごとのレイアウト ▼▼▼ */
+/* 1-a. 通常表示 \*/
+.view-normal \#player-main-ui { flex-grow: 1; }
+.view-normal \#lyrics-container { display: none; }
+
+/\* 1-b. 歌詞の一部表示 \*/
+.view-partial { justify-content: flex-start; }
+.view-partial \#player-main-ui { flex-grow: 0; flex-shrink: 0; }
 .view-partial .player-content { height: auto; padding-bottom: 0; gap: 8px; }
-.view-partial #player-main-ui .artwork-container { width: 40vw; max-width: 150px; } /* アートワークを小さく */
-.view-partial #lyrics-container { display: flex; flex-grow: 1; padding: 10px; width: 100%; box-sizing: border-box; }
-.view-partial #partial-lyrics-display { display: flex; }
-.view-partial #full-lyrics-display { display: none; }
+.view-partial \#player-main-ui .artwork-container { width: 40vw; max-width: 150px; }
+.view-partial \#lyrics-container { display: flex; flex-grow: 1; padding: 10px; width: 100%; box-sizing: border-box; }
+.view-partial \#partial-lyrics-display { display: flex; }
+.view-partial \#full-lyrics-display { display: none; }
 
-/* 1-c. 歌詞の全文表示 */
-.view-full #player-main-ui { display: none; }
-.view-full #lyrics-container { display: flex; height: 100%; padding: 10px; width: 100%; box-sizing: border-box; }
-.view-full #full-lyrics-display { display: block; }
-.view-full #partial-lyrics-display { display: none; }
+/\* 1-c. 歌詞の全文表示 \*/
+.view-full \#player-main-ui { display: none; }
+.view-full \#lyrics-container { display: flex; height: 100%; padding: 10px; width: 100%; box-sizing: border-box; }
+.view-full \#full-lyrics-display { display: block; }
+.view-full \#partial-lyrics-display { display: none; }
 
-/* --- 歌詞表示UIのスタイル --- */
-#lyrics-container { flex-direction: column; overflow: hidden; }
+/\* --- 歌詞表示UIのスタイル --- \*/
+\#lyrics-container { flex-direction: column; overflow: hidden; }
 .lyrics-view { flex-grow: 1; overflow: hidden; }
 .lyrics-panel {
-    background-color: rgba(30, 30, 30, 0.7);
-    border: 1px solid #444;
-    border-radius: 12px;
-    padding: 15px;
-    box-sizing: border-box;
-    height: 100%;
+background-color: rgba(30, 30, 30, 0.7);
+border: 1px solid \#444;
+border-radius: 12px;
+padding: 15px;
+box-sizing: border-box;
+height: 100%;
 }
-#partial-lyrics-display { flex-direction: column; justify-content: center; align-items: center; font-size: 1.1em; line-height: 1.6; text-align: center; }
-#partial-lyrics-display p { margin: 0.1em 0; color: #888; transition: color 0.3s, font-size 0.3s; }
-#partial-lyrics-display p.current-lyric { color: #fff; font-weight: bold; font-size: 1.2em; }
-#full-lyrics-display { font-size: 1.2em; line-height: 1.8; }
-#full-lyrics-display p { margin: 0.5em 0; opacity: 0.6; }
-#full-lyrics-display p.current-lyric { opacity: 1; font-weight: bold; }
+\#partial-lyrics-display { flex-direction: column; justify-content: center; align-items: center; font-size: 1.1em; line-height: 1.6; text-align: center; }
+\#partial-lyrics-display p { margin: 0.1em 0; color: \#888; transition: color 0.3s, font-size 0.3s; }
+\#partial-lyrics-display p.current-lyric { color: \#fff; font-weight: bold; font-size: 1.2em; }
+\#full-lyrics-display { font-size: 1.2em; line-height: 1.8; }
+\#full-lyrics-display p { margin: 0.5em 0; opacity: 0.6; }
+\#full-lyrics-display p.current-lyric { opacity: 1; font-weight: bold; }
 
-/* 歌詞コントロール */
-#lyrics-controls { height: var(--lyrics-controls-height); flex-shrink: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5px; gap: 10px; }
+/\* 歌詞コントロール \*/
+\#lyrics-controls { height: var(--lyrics-controls-height); flex-shrink: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5px; gap: 10px; }
 .language-selector { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
-.language-selector button { font-size: 0.8em; padding: 5px 12px; border-radius: 15px; background-color: #333; }
-.language-selector button.active { background-color: #7e57c2; color: white; }
-.view-toggle { display: flex; background-color: #2c2c2e; border-radius: 20px; padding: 4px; }
-.view-toggle button { font-size: 0.9em; padding: 6px 16px; background: none; border: none; color: #aaa; }
-.view-toggle button.active { background-color: #555; color: white; border-radius: 16px; }
+.language-selector button { font-size: 0.8em; padding: 5px 12px; border-radius: 15px; background-color: \#333; }
+.language-selector button.active { background-color: \#7e57c2; color: white; }
+.view-toggle { display: flex; background-color: \#2c2c2e; border-radius: 20px; padding: 4px; }
+.view-toggle button { font-size: 0.9em; padding: 6px 16px; background: none; border: none; color: \#aaa; }
+.view-toggle button.active { background-color: \#555; color: white; border-radius: 16px; }
 
-/* --- その他 (既存のスタイルは省略) --- */
-.split-bottom { height: 50%; background-color: #1c1c1e; padding: 10px; overflow-y: auto; position: relative; }
-#lyrics-settings-panel { border-left: 3px solid #555; padding-left: 10px; margin-top: 15px; }
-.lyrics-editor { display: flex; gap: 10px; height: 150px; }
-.lyrics-editor textarea { flex: 1; height: 100%; background-color: #333; border: 1px solid #555; color: #fff; border-radius: 5px; padding: 8px; font-family: monospace; resize: none; }
-#prop-lyrics-timings { flex-basis: 100px; flex-grow: 0; text-align: right; }
-#list-tree-view-container { height: calc(100% - var(--list-button-height)); padding: 10px; }
-.fixed-bottom-button-container { position: absolute; bottom: 0; left: 0; right: 0; height: var(--list-button-height); display: flex; justify-content: center; align-items: center; background: linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0.8) 50%, rgba(0,0,0,0) 100%); padding-bottom: 5px; }
+/\* --- 2. 一覧画面 --- \*/
+\#list-tree-view-container { height: calc(100% - var(--list-button-height)); padding: 10px; box-sizing: border-box; }
+.fixed-bottom-button-container {
+position: absolute; bottom: 0; left: 0; right: 0; height: var(--list-button-height);
+display: flex; justify-content: center; align-items: center;
+background: linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0.8) 50%, rgba(0,0,0,0) 100%);
+padding-bottom: 5px;
+}
+
+/\* --- 3. 設定画面 --- \*/
 .settings-view { width: 100%; height: 100%; display: none; flex-direction: column; }
 .settings-view.active { display: flex; }
-.settings-button-group { flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 20px; }
-#bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; height: var(--nav-height); background-color: rgba(28, 28, 30, 0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-top: 1px solid #444; display: flex; z-index: 100; padding-bottom: var(--safe-area-bottom); }
-.nav-item { flex: 1; display: flex; justify-content: center; align-items: center; height: 100%; }
-.nav-button { background: none; border: none; color: #8e8e93; font-size: 0.9em; cursor: pointer; }
-.nav-button.active { color: #fff; }
+.settings-button-group { flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 20px; padding: 20px; }
+.settings-button { text-align: center; width: 100%; max-width: 350px; box-sizing: border-box; }
+.detail-button { margin-top: 20px; }
+\#versionDisplay { color: \#888; font-size: 0.9em; margin-bottom: 20px; order: -1; }
+.split-top { height: 50%; border-bottom: 1px solid \#444; }
+.split-bottom { height: 50%; background-color: \#1c1c1e; padding: 10px; box-sizing: border-box; overflow-y: auto; position: relative; }
+\#back-to-main-settings-button { position: absolute; top: 10px; left: 10px; padding: 5px 15px; font-size: 0.9em; }
+\#properties-panel h4 { margin-top: 40px; }
+.prop-details { margin: 10px 0; }
+.prop-details input[type="text"], .prop-details input[type="number"] {
+width: 100%; padding: 8px; box-sizing: border-box; background-color: \#333;
+border: 1px solid \#555; border-radius: 5px; color: \#fff;
+}
+.prop-details.readonly span { color: \#aaa; font-size: 0.9em; }
+\#loop-settings-panel, \#lyrics-settings-panel { border-left: 3px solid \#555; padding-left: 10px; margin-top: 15px; }
+.lyrics-editor { display: flex; gap: 10px; height: 150px; }
+.lyrics-editor textarea { flex: 1; height: 100%; background-color: \#333; border: 1px solid \#555; color: \#fff; border-radius: 5px; padding: 8px; font-family: monospace; resize: none; }
+\#prop-lyrics-timings { flex-basis: 100px; flex-grow: 0; text-align: right; }
 
+/\* --- 共通ツリービュー --- \*/
+.tree-view ul { padding-left: 12px; list-style-type: none; }
+.tree-view li { padding: 2px 0; }
+.list-item-container { display: flex; align-items: flex-start; justify-content: space-between; padding: 6px 4px; }
+.item-content { flex-grow: 1; cursor: pointer; word-break: break-all; }
+.toggle-button { flex-shrink: 0; padding: 5px 12px; font-size: 0.8em; border-radius: 15px; margin-left: 10px; }
+.tree-view li \> ul { display: none; }
+.tree-view li.open \> ul { display: block; }
+.selected-item \> .list-item-container { background-color: \#3a3a3c; border-radius: 6px; }
+
+/\* --- 下部ナビゲーション --- \*/
+\#bottom-nav {
+position: fixed; bottom: 0; left: 0; width: 100%; height: var(--nav-height);
+background-color: rgba(28, 28, 30, 0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+border-top: 1px solid \#444; display: flex; z-index: 100;
+padding-bottom: var(--safe-area-bottom);
+}
+.nav-item { flex: 1; display: flex; justify-content: center; align-items: center; height: 100%; }
+.nav-button { background: none; border: none; color: \#8e8e93; font-size: 0.9em; cursor: pointer; }
+.nav-button.active { color: \#fff; }
+
+/\* --- ローディングオーバーレイ --- \*/
+\#loading-overlay {
+position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+background-color: rgba(0, 0, 0, 0.7); display: flex;
+justify-content: center; align-items: center; z-index: 1000;
+color: white; font-size: 1.2em;
+}
