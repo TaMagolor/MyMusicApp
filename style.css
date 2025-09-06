@@ -4,8 +4,7 @@
     --list-button-height: 70px;
     --safe-area-bottom: env(safe-area-inset-bottom);
     --lyrics-controls-height: 90px;
-    /* 修正: 歌詞の一部表示パネルの高さを調整 */
-    --partial-lyrics-panel-height: calc(1.6em * 5 + 40px); /* 上下10pxずつ追加 */
+    --partial-lyrics-panel-height: calc(1.6em * 5 + 40px);
 }
 body, html {
     margin: 0; padding: 0; width: 100%; height: 100%;
@@ -36,7 +35,7 @@ input[type="file"] { display: none; }
 #player-screen { justify-content: space-between; }
 #player-main-ui {
     width: 100%;
-    flex-shrink: 0; /* v.3.4.1から復元: UIが縮小しないように保証 */
+    flex-shrink: 0;
     transition: all 0.3s ease;
 }
 .player-content { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; gap: 15px; height: 100%; box-sizing: border-box; }
@@ -60,21 +59,21 @@ input[type="file"] { display: none; }
 }
 #durability-options button { width: 100%; text-align: center; background-color: #3a3a3c; border: none; border-radius: 8px; padding: 10px; font-size: 0.9em; }
 
-/* ▼▼▼ プレイヤー画面の表示モードごとのレイアウト (v.3.4.2の新しい方式) ▼▼▼ */
+/* ▼▼▼ プレイヤー画面の表示モードごとのレイアウト ▼▼▼ */
 /* 1-a. 通常表示 */
 .view-normal #player-main-ui { flex-grow: 1; }
-.view-normal .lyrics-view { display: none; } /* 修正: コンテナ全体ではなく、歌詞パネルのみ非表示に */
+.view-normal .lyrics-view { display: none; }
 
 /* 1-b. 歌詞の一部表示 */
 .view-partial { justify-content: flex-start; }
 .view-partial #player-main-ui { flex-grow: 0; flex-shrink: 0; }
-.view-partial .player-content { height: auto; padding-bottom: 0; gap: 8px; }
+.view-partial .player-content { height: auto; padding: 20px 20px 10px 20px; gap: 8px; } /* 修正: 下のpaddingを調整 */
 .view-partial #player-main-ui .artwork-container { width: 40vw; max-width: 150px; }
 .view-partial #lyrics-container { 
     display: flex;
     height: calc(var(--partial-lyrics-panel-height) + var(--lyrics-controls-height));
     flex-shrink: 0;
-    padding: 10px;
+    padding: 0 10px 10px 10px; /* 修正: 上のpaddingを0に */
     width: 100%;
     box-sizing: border-box; 
 }
@@ -89,7 +88,7 @@ input[type="file"] { display: none; }
 
 /* --- 歌詞表示UIのスタイル --- */
 #lyrics-container { flex-direction: column; overflow: hidden; }
-.lyrics-view { flex-grow: 1; overflow: hidden; }
+.lyrics-view { flex-grow: 1; overflow: auto; } /* 修正: overflow: hidden から auto へ変更 */
 .lyrics-panel {
     background-color: rgba(30, 30, 30, 0.7);
     border: 1px solid #444;
@@ -105,7 +104,6 @@ input[type="file"] { display: none; }
     font-size: 1.1em;
     line-height: 1.6;
     text-align: center;
-    /* ▼▼▼ 修正: パネルの高さを固定 ▼▼▼ */
     height: var(--partial-lyrics-panel-height);
     flex-grow: 0;
 }
@@ -152,28 +150,32 @@ input[type="file"] { display: none; }
 }
 .prop-details.readonly span { color: #aaa; font-size: 0.9em; }
 #loop-settings-panel, #lyrics-settings-panel { border-left: 3px solid #555; padding-left: 10px; margin-top: 15px; }
-.lyrics-editor { display: flex; gap: 10px; /* height: 150px; */ flex-direction: column; } /* flex-direction: column を追加 */
-.lyrics-editor textarea { 
-    flex: 1; 
-    height: auto; /* 修正: 高さを自動調整 */
-    min-height: 100px; /* 修正: 最小高さを設定 */
-    background-color: #333; 
-    border: 1px solid #555; 
-    color: #fff; 
-    border-radius: 5px; 
-    padding: 8px; 
-    font-family: monospace; 
-    resize: vertical; /* 垂直方向のリサイズのみ許可 */
-    overflow-y: hidden; /* 最初はスクロールバーを非表示にし、内容に合わせて拡張 */
+/* ▼▼▼ 歌詞エディタのレイアウトを修正 ▼▼▼ */
+.lyrics-editor {
+    display: flex;
+    flex-direction: row; /* 横並びに変更 */
+    gap: 10px;
+    align-items: stretch; /* 高さを揃える */
+    min-height: 150px; /* コンテナの最小高さを設定 */
 }
-/* テキストエリアの内容に応じて高さを調整するスクリプトが app.js に必要になる可能性あり。
-    CSSのみで対応する場合は overflow-y: auto; に戻すか、JavaScriptで調整する。
-    ここでは CSSのみで自動拡張する一般的な方法を採用。
-*/
-.lyrics-editor textarea:focus {
-    overflow-y: auto; /* フォーカス時にスクロールバーを表示 */
+.lyrics-editor textarea {
+    height: auto; /* JSで高さを制御するためautoに */
+    background-color: #333;
+    border: 1px solid #555;
+    color: #fff;
+    border-radius: 5px;
+    padding: 8px;
+    font-family: monospace;
+    resize: none; /* リサイズを無効化 */
+    overflow-y: hidden; /* スクロールバーを隠す */
 }
-#prop-lyrics-timings { flex-basis: auto; flex-grow: 0; text-align: right; } /* flex-basis も auto に変更 */
+#prop-lyrics-timings {
+    flex: 0 0 120px; /* 左側の幅を固定 */
+    text-align: right;
+}
+#prop-lyrics-text {
+    flex: 1 1 auto; /* 右側が残りの幅をすべて使用 */
+}
 
 /* --- 共通ツリービュー --- */
 .tree-view ul { padding-left: 12px; list-style-type: none; }
