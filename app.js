@@ -1,7 +1,7 @@
 // =================================================================
 // Application Version
 // =================================================================
-const APP_VERSION = 'v.3.4.13'; // Dynamic height for partial lyrics view
+const APP_VERSION = 'v.3.4.14'; // Fixed partial lyrics view rendering bug
 
 // =================================================================
 // HTML Element Acquisition
@@ -54,7 +54,7 @@ const partialLyricsDisplay = document.getElementById('partial-lyrics-display');
 const fullLyricsDisplay = document.getElementById('full-lyrics-display');
 const lyricsLanguageSelector = document.getElementById('lyrics-language-selector');
 const lyricsViewToggle = document.getElementById('lyrics-view-toggle');
-const lyricsControls = document.getElementById('lyrics-controls'); // 追加
+const lyricsControls = document.getElementById('lyrics-controls');
 const propLyricsCompatible = document.getElementById('prop-lyrics-compatible');
 const lyricsSettingsPanel = document.getElementById('lyrics-settings-panel');
 const propLyricsLangCount = document.getElementById('prop-lyrics-lang-count');
@@ -85,6 +85,7 @@ let lyricsUpdateInterval = null;
 let currentLyricsData = null;
 let currentLyricsLang = 0;
 let currentPlayerView = 'normal';
+let lastRenderedLyricIndex = -1; // 追加: 最後に描画した歌詞行のインデックス
 let audioContext;
 let crossfadePlayer;
 let sourceMain, sourceCrossfade;
@@ -417,6 +418,7 @@ async function playSong(songRecord) {
             }))
         };
         currentLyricsLang = 0;
+        lastRenderedLyricIndex = -1; // 修正: リセット
         lyricsContainer.classList.remove('hidden');
         setupLyricsControls(currentLyricsData.languages);
         switchLyricsView('normal');
@@ -574,10 +576,11 @@ function switchLyricsView(view) {
         btn.classList.toggle('active', btn.dataset.view === view);
     });
 
-    // ▼▼▼ 以下を追加: partial viewを離れるときに動的スタイルをクリア ▼▼▼
     if (view !== 'partial') {
         partialLyricsDisplay.style.height = '';
         lyricsContainer.style.height = '';
+    } else {
+        lastRenderedLyricIndex = -1; // 修正: view切り替え時にリセット
     }
 
     if (view === 'full') {
@@ -589,6 +592,7 @@ function switchLyricsView(view) {
 function handleLanguageChange(event) {
     if (event.target.tagName === 'BUTTON') {
         currentLyricsLang = parseInt(event.target.dataset.lang, 10);
+        lastRenderedLyricIndex = -1; // 修正: 言語切り替え時にリセット
         lyricsLanguageSelector.querySelectorAll('button').forEach(btn => {
             btn.classList.toggle('active', parseInt(btn.dataset.lang, 10) === currentLyricsLang);
         });
@@ -618,6 +622,10 @@ function updateLyricsDisplay() {
 }
 
 function renderPartialLyrics(currentIndex) {
+    // 修正: 描画する歌詞が変わらない場合は、処理を中断
+    if (currentIndex === lastRenderedLyricIndex) return;
+    lastRenderedLyricIndex = currentIndex;
+
     const lines = currentLyricsData.languages[currentLyricsLang].lines;
     let content = '';
     for (let i = -2; i <= 2; i++) {
@@ -628,15 +636,10 @@ function renderPartialLyrics(currentIndex) {
     }
     partialLyricsDisplay.innerHTML = content;
 
-    // ▼▼▼ 以下を修正: 高さを動的に計算して適用 ▼▼▼
-    // コンテンツの実際の高さを取得
     const contentHeight = partialLyricsDisplay.scrollHeight;
-    // 上下の余白を少し加える
     const panelHeight = contentHeight + 30;
 
-    // パネル自身の高さを設定
     partialLyricsDisplay.style.height = `${panelHeight}px`;
-    // 親コンテナの高さも更新（パネル＋コントロール部分）
     const controlsHeight = lyricsControls.offsetHeight;
     lyricsContainer.style.height = `${panelHeight + controlsHeight}px`;
 }
