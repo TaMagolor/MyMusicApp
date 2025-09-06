@@ -1,7 +1,7 @@
 // =================================================================
 // Application Version
 // =================================================================
-const APP_VERSION = 'v.3.2.2'; // Refined crossfade timing logic
+const APP_VERSION = 'v.3.3.0'; // Added Crossfade for Durability Mode
 
 // =================================================================
 // HTML Element Acquisition
@@ -38,7 +38,6 @@ const folderSpecificSettings = document.getElementById('folder-specific-settings
 const propIsGame = document.getElementById('prop-is-game');
 const savePropertiesButton = document.getElementById('save-properties-button');
 const audioPlayer = document.getElementById('audioPlayer');
-const crossfadePlayer = document.getElementById('crossfadePlayer');
 const versionDisplay = document.getElementById('versionDisplay');
 const loopFeatureContainer = document.getElementById('loop-feature-container');
 const propLoopCompatible = document.getElementById('prop-loop-compatible');
@@ -74,13 +73,14 @@ let currentLoopInfo = null;
 // Crossfade Audio System Variables
 // =================================================================
 let audioContext;
+let crossfadePlayer; // The second audio element for crossfading
 let sourceMain, sourceCrossfade;
 let gainMain, gainCrossfade;
 let activePlayer, standbyPlayer;
 let activeGain, standbyGain;
 let loopCheckInterval = null;
 let isCrossfading = false;
-const CROSSFADE_DURATION = 1.0; // 1 second default crossfade duration
+const CROSSFADE_DURATION = 1.0; // 1 second crossfade duration
 
 // =================================================================
 // Application Initialization
@@ -90,7 +90,7 @@ window.addEventListener('load', async () => {
 	if (versionDisplay) {
 		versionDisplay.textContent = APP_VERSION;
 	}
-    initializeAudioSystem();
+    initializeAudioSystem(); // Initialize the audio system for crossfading
 	await loadDataFromDB();
 });
 
@@ -119,9 +119,7 @@ savePropertiesButton.addEventListener('click', handleSaveProperties);
 exportButton.addEventListener('click', handleExport);
 importInput.addEventListener('change', handleImport);
 audioPlayer.addEventListener('ended', handleSongEnd);
-audioPlayer.addEventListener('timeupdate', updateMediaPosition);
-crossfadePlayer.addEventListener('ended', handleSongEnd);
-crossfadePlayer.addEventListener('timeupdate', updateMediaPosition);
+audioPlayer.addEventListener('timeupdate', updateMediaPosition); // Loop handling is now separate
 propLoopCompatible.addEventListener('change', handleLoopCompatibleChange);
 
 // =================================================================
@@ -264,6 +262,8 @@ function updateMediaPosition() {
 }
 
 function handleSongEnd(event) {
+    // Ignore the 'ended' event if it's not from the active player
+    // This prevents the fading-out player from triggering the next song
     if (event && event.target !== activePlayer) {
         return;
     }
@@ -326,7 +326,7 @@ function handleRandomButton() {
         const songRecord = findFileByPath(selectedItemPath);
         if (songRecord) {
             nextSongToPlay = songRecord;
-            if (activePlayer && activePlayer.paused) playNextSong();
+            if (activePlayer.paused) playNextSong();
         }
     }
 }
@@ -334,22 +334,16 @@ function handleRandomButton() {
 async function playSong(songRecord) {
 	if (!songRecord) return;
 
+    // Stop any ongoing loop checks and reset state
     if (loopCheckInterval) {
         clearInterval(loopCheckInterval);
         loopCheckInterval = null;
     }
     isCrossfading = false;
-    
-    activePlayer = audioPlayer;
-    standbyPlayer = crossfadePlayer;
-    activeGain = gainMain;
-    standbyGain = gainCrossfade;
-    
-    activePlayer.classList.remove('hidden');
-    standbyPlayer.classList.add('hidden');
     standbyPlayer.pause();
     standbyPlayer.src = '';
     
+    // Reset volumes using Web Audio API if available
     if (audioContext) {
         activeGain.gain.cancelScheduledValues(audioContext.currentTime);
         standbyGain.gain.cancelScheduledValues(audioContext.currentTime);
@@ -413,21 +407,21 @@ async function playSong(songRecord) {
 			artwork: [ { src: artworkURL, sizes: '512x512', type: 'image/svg+xml' } ]
 		});
 		navigator.mediaSession.setActionHandler('play', () => {
-            if (activePlayer) activePlayer.play();
+            activePlayer.play();
             if (durabilityMode.enabled && currentLoopInfo && !isCrossfading) {
                 startLoopMonitoring();
             }
         });
 		navigator.mediaSession.setActionHandler('pause', () => {
-            if (activePlayer) activePlayer.pause();
+            activePlayer.pause();
             if (loopCheckInterval) clearInterval(loopCheckInterval);
         });
 		navigator.mediaSession.setActionHandler('nexttrack', () => playNextSong());
 		navigator.mediaSession.setActionHandler('previoustrack', () => {
-			if (activePlayer) activePlayer.currentTime = Math.max(activePlayer.currentTime - 5, 0);
+			activePlayer.currentTime = Math.max(activePlayer.currentTime - 5, 0);
 		});
 		try {
-			navigator.mediaSession.setActionHandler('seekto', (details) => { if (activePlayer) activePlayer.currentTime = details.seekTime; });
+			navigator.mediaSession.setActionHandler('seekto', (details) => { activePlayer.currentTime = details.seekTime; });
 		} catch (error) { console.log('seekto action is not supported.'); }
 	}
 }
@@ -490,7 +484,8 @@ function setDurabilityMode(durationInSeconds) {
     durabilityModeButton.textContent = buttonText;
     durabilityOptions.classList.add('hidden');
 
-    if (durabilityMode.enabled && currentLoopInfo && activePlayer && !activePlayer.paused) {
+    // Start or stop loop monitoring based on the new mode
+    if (durabilityMode.enabled && currentLoopInfo && !activePlayer.paused) {
         startLoopMonitoring();
     } else if (!durabilityMode.enabled && loopCheckInterval) {
         clearInterval(loopCheckInterval);
@@ -499,9 +494,15 @@ function setDurabilityMode(durationInSeconds) {
 }
 
 // =================================================================
-// Crossfade and Loop Handling Functions (MODIFIED)
+// New Crossfade and Loop Handling Functions
 // =================================================================
 function initializeAudioSystem() {
+    crossfadePlayer = document.createElement('audio');
+    crossfadePlayer.id = 'crossfadePlayer';
+    document.body.appendChild(crossfadePlayer);
+    crossfadePlayer.addEventListener('ended', handleSongEnd);
+    crossfadePlayer.addEventListener('timeupdate', updateMediaPosition);
+
     activePlayer = audioPlayer;
     standbyPlayer = crossfadePlayer;
 
@@ -537,74 +538,45 @@ function initializeAudioSystem() {
 function startLoopMonitoring() {
     if (loopCheckInterval) clearInterval(loopCheckInterval);
     loopCheckInterval = setInterval(() => {
-        if (!durabilityMode.enabled || !currentLoopInfo || isCrossfading || !activePlayer || activePlayer.paused) {
+        if (!durabilityMode.enabled || !currentLoopInfo || isCrossfading || activePlayer.paused) {
             return;
         }
-        // When the player's current time passes the loop end time, trigger the crossfade.
-        if (activePlayer.currentTime >= currentLoopInfo.loopEndTime) {
+        const timeUntilLoopEnd = currentLoopInfo.loopEndTime - activePlayer.currentTime;
+        if (timeUntilLoopEnd <= CROSSFADE_DURATION) {
             triggerCrossfade();
         }
-    }, 50); // Check more frequently for better precision
+    }, 100); // Check every 100ms
 }
 
 function triggerCrossfade() {
-    if (isCrossfading) return; // Prevent multiple triggers
-
-    if (!audioContext) { 
-        // Fallback to hard loop if Web Audio API is not available
-        if(activePlayer) activePlayer.currentTime = currentLoopInfo.loopStartTime;
+    if (!audioContext) { // Fallback to hard loop if Web Audio API is not available
+        activePlayer.currentTime = currentLoopInfo.loopStartTime;
         return;
     }
-    
     isCrossfading = true;
     if (loopCheckInterval) clearInterval(loopCheckInterval);
     loopCheckInterval = null;
 
-    // 1. Calculate the actual crossfade duration
-    const songDuration = activePlayer.duration;
-    let actualFadeDuration = CROSSFADE_DURATION; // Default 1 second
-
-    // Check if there's enough time for the default crossfade duration
-    if (currentLoopInfo.loopEndTime + CROSSFADE_DURATION > songDuration) {
-        actualFadeDuration = songDuration - currentLoopInfo.loopEndTime;
-        
-        // If remaining time is too short for a fade, perform a hard loop instead
-        if (actualFadeDuration < 0.05) {
-            activePlayer.currentTime = currentLoopInfo.loopStartTime;
-            isCrossfading = false; // Reset flag
-            startLoopMonitoring(); // Restart monitoring
-            return;
-        }
-    }
-
-    // 2. Prepare and start standby player
-    standbyPlayer.classList.remove('hidden');
     standbyPlayer.src = activePlayer.src;
     standbyPlayer.currentTime = currentLoopInfo.loopStartTime;
     standbyPlayer.play();
 
-    // 3. Schedule audio ramps
     const now = audioContext.currentTime;
-    activeGain.gain.linearRampToValueAtTime(0, now + actualFadeDuration);
-    standbyGain.gain.linearRampToValueAtTime(1, now + actualFadeDuration);
+    activeGain.gain.linearRampToValueAtTime(0, now + CROSSFADE_DURATION);
+    standbyGain.gain.linearRampToValueAtTime(1, now + CROSSFADE_DURATION);
 
-    // 4. Schedule the completion
-    setTimeout(completeCrossfade, actualFadeDuration * 1000);
+    setTimeout(completeCrossfade, CROSSFADE_DURATION * 1000);
 }
 
 function completeCrossfade() {
-    // The player that was fading out (the original activePlayer) can now be stopped.
     activePlayer.pause();
-    activePlayer.src = '';
-    activePlayer.classList.add('hidden');
 
-    // Swap roles: the standby player is now the active one.
+    // Swap roles
     [activePlayer, standbyPlayer] = [standbyPlayer, activePlayer];
     [activeGain, standbyGain] = [standbyGain, activeGain];
 
     isCrossfading = false;
     
-    // Restart loop monitoring for the new active player.
     if (durabilityMode.enabled && currentLoopInfo) {
         startLoopMonitoring();
     }

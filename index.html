@@ -8,6 +8,15 @@
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
     <script src="https://unpkg.com/dexie@latest/dist/dexie.js"></script>
+    <style>
+        .hidden {
+            display: none;
+        }
+        #audioPlayer, #crossfadePlayer {
+            width: 100%;
+            margin-top: 8px;
+        }
+    </style>
 </head>
 <body>
     <main id="app-container">
@@ -22,6 +31,7 @@
                     <img id="player-artwork" src="data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2024%2024'%20width%3D'512'%20height%3D'512'%3E%3Crect%20width%3D'24'%20height%3D'24'%20fill%3D'%237e57c2'%2F%3E%3Cpath%20fill%3D'white'%20d%3D'M12%203v10.55c-.59-.34-1.27-.55-2-.55-2.21%200-4%201.79-4%204s1.79%204%204%204%204-1.79%204-4V7h4V3h-6z'%2F%3E%3C%2Fsvg%3E" alt="Artwork">
                 </div>
                 <audio id="audioPlayer" controls></audio>
+                <audio id="crossfadePlayer" controls class="hidden"></audio>
                 <div id="player-song-name" class="player-info-text song-title">曲名</div>
                 <div id="player-game-name" class="player-info-text game-title">ゲーム名</div>
                 
