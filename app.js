@@ -1,7 +1,7 @@
 // =================================================================
 // Application Version
 // =================================================================
-const APP_VERSION = 'v.3.4.16'; // Finalized partial lyrics view layout
+const APP_VERSION = 'v.3.4.17'; // Finalized partial lyrics view layout
 
 // =================================================================
 // HTML Element Acquisition
