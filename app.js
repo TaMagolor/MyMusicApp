@@ -1,7 +1,7 @@
 // =================================================================
 // Application Version
 // =================================================================
-const APP_VERSION = 'v.3.4.17'; // Finalized partial lyrics view layout
+const APP_VERSION = 'v.3.5.1'; // Removed Web Audio API for background playback compatibility
 
 // =================================================================
 // HTML Element Acquisition
@@ -18,8 +18,6 @@ const playerFolderName = document.getElementById('player-folder-name');
 const playerArtwork = document.getElementById('player-artwork');
 const playerSongName = document.getElementById('player-song-name');
 const playerGameName = document.getElementById('player-game-name');
-const durabilityModeButton = document.getElementById('durability-mode-button');
-const durabilityOptions = document.getElementById('durability-options');
 const listTreeViewContainer = document.getElementById('list-tree-view-container');
 const listRandomButton = document.getElementById('list-random-button');
 const fileInput = document.getElementById('fileInput');
@@ -79,21 +77,10 @@ let recentlyPlayed = [];
 let songProperties = {};
 let nextSongToPlay = null;
 let activeRandomFolderPath = null;
-let durabilityMode = { enabled: false, duration: 0 };
-let currentLoopInfo = null;
 let lyricsUpdateInterval = null;
 let currentLyricsData = null;
 let currentLyricsLang = 0;
 let currentPlayerView = 'normal';
-let audioContext;
-let crossfadePlayer;
-let sourceMain, sourceCrossfade;
-let gainMain, gainCrossfade;
-let activePlayer, standbyPlayer;
-let activeGain, standbyGain;
-let loopCheckInterval = null;
-let isCrossfading = false;
-const CROSSFADE_DURATION = 1.0;
 
 // =================================================================
 // Application Initialization
@@ -103,7 +90,6 @@ window.addEventListener('load', async () => {
 	if (versionDisplay) {
 		versionDisplay.textContent = APP_VERSION;
 	}
-    initializeAudioSystem();
 	await loadDataFromDB();
 });
 
@@ -115,15 +101,6 @@ navListButton.addEventListener('click', () => switchScreen('list'));
 navSettingsButton.addEventListener('click', () => switchScreen('settings'));
 gotoDetailSettingsButton.addEventListener('click', () => switchSettingsView('detail'));
 backToMainSettingsButton.addEventListener('click', () => switchSettingsView('main'));
-durabilityModeButton.addEventListener('click', () => {
-    durabilityOptions.classList.toggle('hidden');
-});
-durabilityOptions.addEventListener('click', (e) => {
-    if (e.target.tagName === 'BUTTON') {
-        const duration = parseInt(e.target.dataset.duration, 10);
-        setDurabilityMode(duration);
-    }
-});
 listRandomButton.addEventListener('click', handleRandomButton);
 listTreeViewContainer.addEventListener('click', handleTreeClick);
 settingsTreeViewContainer.addEventListener('click', handleTreeClick);
@@ -139,7 +116,6 @@ propLyricsCurrentLang.addEventListener('change', handleLyricsSettingChange);
 lyricsViewToggle.addEventListener('click', handleViewToggle);
 lyricsLanguageSelector.addEventListener('click', handleLanguageChange);
 audioPlayer.addEventListener('ended', handleSongEnd);
-crossfadePlayer.addEventListener('ended', handleSongEnd);
 propLyricsTimings.addEventListener('input', autoResizeLyricsEditor);
 propLyricsText.addEventListener('input', autoResizeLyricsEditor);
 
@@ -273,10 +249,8 @@ function handleTimeUpdate() {
 }
 
 function handleSongEnd(event) {
-    if (event && event.target !== activePlayer) return;
-    if (loopCheckInterval) clearInterval(loopCheckInterval);
+    if (event && event.target !== audioPlayer) return;
     if (lyricsUpdateInterval) clearInterval(lyricsUpdateInterval);
-    isCrossfading = false;
     setTimeout(playNextSong, 800);
 }
 
@@ -327,7 +301,7 @@ function handleRandomButton() {
         const songRecord = findFileByPath(selectedItemPath);
         if (songRecord) {
             nextSongToPlay = songRecord;
-            if (activePlayer.paused) playNextSong();
+            if (audioPlayer.paused) playNextSong();
         }
     }
 }
@@ -335,37 +309,16 @@ function handleRandomButton() {
 async function playSong(songRecord) {
 	if (!songRecord) return;
 
-    if (loopCheckInterval) clearInterval(loopCheckInterval);
-    isCrossfading = false;
-    standbyPlayer.pause();
-    standbyPlayer.src = '';
-    
-    if (audioContext) {
-        activeGain.gain.cancelScheduledValues(audioContext.currentTime);
-        standbyGain.gain.cancelScheduledValues(audioContext.currentTime);
-        activeGain.gain.setValueAtTime(1, audioContext.currentTime);
-        standbyGain.gain.setValueAtTime(0, audioContext.currentTime);
-    }
-
     const file = songRecord.file;
     const props = songProperties[songRecord.path] || {};
 	recentlyPlayed.unshift(songRecord.path);
 	if (recentlyPlayed.length > 200) recentlyPlayed.pop();
 	await saveProperties('recentlyPlayed', recentlyPlayed);
 	
-    currentLoopInfo = null;
-    if (props.isLoopCompatible && props.loopEndTime > 0) {
-        currentLoopInfo = {
-            loopStartTime: props.loopStartTime || 0,
-            loopEndTime: props.loopEndTime
-        };
-    }
-    
-    activePlayer.src = URL.createObjectURL(file);
+    audioPlayer.src = URL.createObjectURL(file);
 
 	try {
-		await activePlayer.play();
-        if (durabilityMode.enabled && currentLoopInfo) startLoopMonitoring();
+		await audioPlayer.play();
 	} catch (error) {
 		console.error('Playback failed:', error);
 	}
@@ -398,12 +351,12 @@ async function playSong(songRecord) {
 			title: songDisplayName, artist: gameName, album: '多機能ミュージックリスト',
 			artwork: [ { src: artworkURL, sizes: '512x512', type: 'image/svg+xml' } ]
 		});
-		navigator.mediaSession.setActionHandler('play', () => activePlayer.play());
-		navigator.mediaSession.setActionHandler('pause', () => activePlayer.pause());
+		navigator.mediaSession.setActionHandler('play', () => audioPlayer.play());
+		navigator.mediaSession.setActionHandler('pause', () => audioPlayer.pause());
 		navigator.mediaSession.setActionHandler('nexttrack', () => playNextSong());
-		navigator.mediaSession.setActionHandler('previoustrack', () => { activePlayer.currentTime = Math.max(activePlayer.currentTime - 5, 0); });
+		navigator.mediaSession.setActionHandler('previoustrack', () => { audioPlayer.currentTime = Math.max(audioPlayer.currentTime - 5, 0); });
 		try {
-			navigator.mediaSession.setActionHandler('seekto', (details) => { activePlayer.currentTime = details.seekTime; });
+			navigator.mediaSession.setActionHandler('seekto', (details) => { audioPlayer.currentTime = details.seekTime; });
 		} catch (error) { console.log('seekto is not supported.'); }
 	}
     
@@ -479,86 +432,6 @@ function playNextSong() {
     playSong(songToPlay);
 }
 
-
-function setDurabilityMode(durationInSeconds) {
-    durabilityMode.enabled = durationInSeconds > 0;
-    durabilityMode.duration = durationInSeconds;
-    durabilityModeButton.textContent = `耐久モード: ${durabilityMode.enabled ? `${durationInSeconds / 60}分` : 'ループなし'}`;
-    durabilityOptions.classList.add('hidden');
-
-    if (durabilityMode.enabled && currentLoopInfo && !activePlayer.paused) {
-        startLoopMonitoring();
-    } else if (!durabilityMode.enabled && loopCheckInterval) {
-        clearInterval(loopCheckInterval);
-        loopCheckInterval = null;
-    }
-}
-
-function initializeAudioSystem() {
-    crossfadePlayer = document.getElementById('crossfadePlayer');
-    activePlayer = audioPlayer;
-    standbyPlayer = crossfadePlayer;
-
-    const createAudioContext = () => {
-        if (!audioContext) {
-            try {
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                sourceMain = audioContext.createMediaElementSource(audioPlayer);
-                gainMain = audioContext.createGain();
-                sourceMain.connect(gainMain).connect(audioContext.destination);
-                sourceCrossfade = audioContext.createMediaElementSource(crossfadePlayer);
-                gainCrossfade = audioContext.createGain();
-                sourceCrossfade.connect(gainCrossfade).connect(audioContext.destination);
-                activeGain = gainMain;
-                standbyGain = gainCrossfade;
-                activeGain.gain.value = 1;
-                standbyGain.gain.value = 0;
-            } catch (e) {
-                console.error('Web Audio API is not supported', e);
-            }
-        }
-        document.body.removeEventListener('click', createAudioContext, true);
-    };
-    document.body.addEventListener('click', createAudioContext, true);
-}
-
-function startLoopMonitoring() {
-    if (loopCheckInterval) clearInterval(loopCheckInterval);
-    loopCheckInterval = setInterval(() => {
-        if (!durabilityMode.enabled || !currentLoopInfo || isCrossfading || activePlayer.paused) return;
-        const timeUntilLoopEnd = currentLoopInfo.loopEndTime - activePlayer.currentTime;
-        if (timeUntilLoopEnd <= CROSSFADE_DURATION) triggerCrossfade();
-    }, 100);
-}
-
-function triggerCrossfade() {
-    if (!audioContext) {
-        activePlayer.currentTime = currentLoopInfo.loopStartTime;
-        return;
-    }
-    isCrossfading = true;
-    if (loopCheckInterval) clearInterval(loopCheckInterval);
-    loopCheckInterval = null;
-
-    standbyPlayer.src = activePlayer.src;
-    standbyPlayer.currentTime = currentLoopInfo.loopStartTime;
-    standbyPlayer.play();
-
-    const now = audioContext.currentTime;
-    activeGain.gain.linearRampToValueAtTime(0, now + CROSSFADE_DURATION);
-    standbyGain.gain.linearRampToValueAtTime(1, now + CROSSFADE_DURATION);
-
-    setTimeout(completeCrossfade, CROSSFADE_DURATION * 1000);
-}
-
-function completeCrossfade() {
-    activePlayer.pause();
-    [activePlayer, standbyPlayer] = [standbyPlayer, activePlayer];
-    [activeGain, standbyGain] = [standbyGain, activeGain];
-    isCrossfading = false;
-    if (durabilityMode.enabled && currentLoopInfo) startLoopMonitoring();
-}
-
 function handleViewToggle(event) {
     if (event.target.tagName === 'BUTTON') {
         switchLyricsView(event.target.dataset.view);
@@ -592,9 +465,9 @@ function handleLanguageChange(event) {
 }
 
 function updateLyricsDisplay() {
-    if (!currentLyricsData || currentPlayerView === 'normal' || !activePlayer) return;
+    if (!currentLyricsData || currentPlayerView === 'normal' || !audioPlayer) return;
 
-    const currentTime = activePlayer.currentTime;
+    const currentTime = audioPlayer.currentTime;
     const timings = currentLyricsData.timings;
     let currentIndex = -1;
     for (let i = timings.length - 1; i >= 0; i--) {
@@ -605,17 +478,15 @@ function updateLyricsDisplay() {
     }
 
     if (currentPlayerView === 'partial') {
-        renderPartialLyrics(currentIndex); // 修正: シンプルな描画関数を呼ぶ
+        renderPartialLyrics(currentIndex);
     } else if (currentPlayerView === 'full') {
         highlightFullLyrics(currentIndex);
     }
 }
 
-// 修正: シンプルなHTML更新のみを行う関数に戻す
 function renderPartialLyrics(currentIndex) {
     const lines = currentLyricsData.languages[currentLyricsLang].lines;
     let content = '';
-    // 現在行を中心に、前後2行（合計5行）を描画
     for (let i = -2; i <= 2; i++) {
         const lineIndex = currentIndex + i;
         const line = (lineIndex >= 0 && lineIndex < lines.length && lines[lineIndex]) ? lines[lineIndex] : '&nbsp;';
@@ -965,11 +836,11 @@ function timeStringToSeconds(timeString) {
 }
 
 function updateMediaPosition() {
-    if ('mediaSession' in navigator && navigator.mediaSession.metadata && activePlayer) {
+    if ('mediaSession' in navigator && navigator.mediaSession.metadata && audioPlayer) {
         navigator.mediaSession.setPositionState({
-            duration: activePlayer.duration || 0,
-            playbackRate: activePlayer.playbackRate,
-            position: activePlayer.currentTime || 0,
+            duration: audioPlayer.duration || 0,
+            playbackRate: audioPlayer.playbackRate,
+            position: audioPlayer.currentTime || 0,
         });
     }
 }
