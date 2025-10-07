@@ -20,24 +20,11 @@
                         <span id="player-folder-name">フォルダ名</span>
                     </div>
                     <div class="artwork-container">
-                        <img id="player-artwork" src="data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2024%2024'%20width%3D'512'%20height%3D'512'%3E%3Crect%20width%3D'24'%20height%3D'24'%20fill%3D'%237e57c2'%2F%3E%3Cpath%20fill%3D'white'%20d%3D'M12%203v10.55c-.59-.34-1.27-.55-2-.55-2.21%200-4%201.79-4%204s1.79%204%204%204%204-1.79%204-4V7h4V3h-6z'%2F%3E%3C%2Fsvg%3E" alt="Artwork">
+                        <img id="player-artwork" src="" alt="Artwork">
                     </div>
                     <audio id="audioPlayer" controls></audio>
-                    <audio id="crossfadePlayer" class="hidden"></audio>
                     <div id="player-song-name" class="player-info-text song-title">曲名</div>
                     <div id="player-game-name" class="player-info-text game-title">ゲーム名</div>
-                    
-                    <div id="durability-mode-container">
-                        <button id="durability-mode-button">耐久モード: ループなし</button>
-                        <div id="durability-options" class="hidden">
-                            <button data-duration="0">ループなし</button>
-                            <button data-duration="300">5分</button>
-                            <button data-duration="600">10分</button>
-                            <button data-duration="900">15分</button>
-                            <button data-duration="1800">30分</button>
-                            <button data-duration="3600">60分</button>
-                        </div>
-                    </div>
                 </div>
             </div>
 
@@ -109,6 +96,13 @@
                     </div>
                     <div id="folder-specific-settings">
                         <div class="prop-details"><label><input type="checkbox" id="prop-is-game"> Gameフォルダとしてマーク</label></div>
+                        <div id="artwork-management-ui" class="hidden">
+                            <p>アートワーク設定:</p>
+                            <img id="artwork-preview" src="" alt="Artwork Preview" style="max-width: 100px; max-height: 100px; display: block; margin-bottom: 10px;">
+                            <label for="artwork-upload-input" class="settings-button" style="font-size: 0.9em; padding: 8px 16px;">画像をアップロード</label>
+                            <input type="file" id="artwork-upload-input" accept="image/*">
+                            <button id="artwork-remove-button" style="font-size: 0.9em; padding: 8px 16px; background-color: #555;">画像を取り消し</button>
+                        </div>
                     </div>
                     <button id="save-properties-button">設定を保存</button>
                 </div>

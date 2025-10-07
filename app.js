@@ -1,7 +1,7 @@
 // =================================================================
 // Application Version
 // =================================================================
-const APP_VERSION = 'v.3.7.1'; // Synchronized folder states between tree views
+const APP_VERSION = 'v.3.8.0'; // Implemented folder-based artwork management
 
 // =================================================================
 // HTML Element Acquisition
@@ -60,6 +60,10 @@ const propLyricsCurrentLang = document.getElementById('prop-lyrics-current-lang'
 const propLyricsLangName = document.getElementById('prop-lyrics-lang-name');
 const propLyricsTimings = document.getElementById('prop-lyrics-timings');
 const propLyricsText = document.getElementById('prop-lyrics-text');
+const artworkManagementUI = document.getElementById('artwork-management-ui');
+const artworkPreview = document.getElementById('artwork-preview');
+const artworkUploadInput = document.getElementById('artwork-upload-input');
+const artworkRemoveButton = document.getElementById('artwork-remove-button');
 const loadingOverlay = document.createElement('div');
 loadingOverlay.id = 'loading-overlay';
 loadingOverlay.innerHTML = '<div>データを処理中...</div>';
@@ -81,6 +85,7 @@ let lyricsUpdateInterval = null;
 let currentLyricsData = null;
 let currentLyricsLang = 0;
 let currentPlayerView = 'normal';
+let rootPath = null; // ルートディレクトリのパスを保持
 
 // =================================================================
 // Application Initialization
@@ -91,6 +96,9 @@ window.addEventListener('load', async () => {
 		versionDisplay.textContent = APP_VERSION;
 	}
 	await loadDataFromDB();
+    if (rootPath) {
+        await displayArtwork(rootPath); // アプリ起動時にデフォルトアートワークを表示
+    }
 });
 
 // =================================================================
@@ -118,6 +126,9 @@ lyricsLanguageSelector.addEventListener('click', handleLanguageChange);
 audioPlayer.addEventListener('ended', handleSongEnd);
 propLyricsTimings.addEventListener('input', autoResizeLyricsEditor);
 propLyricsText.addEventListener('input', autoResizeLyricsEditor);
+propIsGame.addEventListener('change', () => showPropertiesPanel(false)); // Gameフォルダチェック時にUIを更新
+artworkUploadInput.addEventListener('change', handleArtworkUpload);
+artworkRemoveButton.addEventListener('click', handleArtworkRemove);
 
 
 // =================================================================
@@ -129,6 +140,7 @@ async function handleFileInputChange(event) {
     showLoading(`インポート中: 0 / ${files.length}`);
     try {
         await db.songs.clear();
+        await db.artworks.clear(); // アートワークもクリア
         for (let i = 0; i < files.length; i++) {
             const file = files[i];
             const songRecord = { path: file.webkitRelativePath, file: file };
@@ -224,6 +236,33 @@ function handleImport(event) {
 	event.target.value = '';
 }
 
+async function handleArtworkUpload(event) {
+    const file = event.target.files[0];
+    if (!file || !selectedItemPath) return;
+
+    await db.artworks.put({ path: selectedItemPath, image: file });
+    const props = songProperties[selectedItemPath] || {};
+    props.hasArtwork = true;
+    songProperties[selectedItemPath] = props;
+    await saveProperties('songProperties', songProperties);
+    
+    await displayArtwork(selectedItemPath, artworkPreview); // プレビューを更新
+    event.target.value = '';
+}
+
+async function handleArtworkRemove() {
+    if (!selectedItemPath) return;
+
+    await db.artworks.delete(selectedItemPath);
+    const props = songProperties[selectedItemPath] || {};
+    delete props.hasArtwork;
+    songProperties[selectedItemPath] = props;
+    await saveProperties('songProperties', songProperties);
+
+    await displayArtwork(selectedItemPath, artworkPreview); // プレビューを更新（デフォルトに戻る）
+}
+
+
 function handleLoopCompatibleChange() {
     const isChecked = propLoopCompatible.checked;
     loopLockContainer.classList.toggle('hidden', !isChecked);
@@ -257,22 +296,35 @@ function handleSongEnd(event) {
 // =================================================================
 // Core Functions
 // =================================================================
+async function displayArtwork(path, targetImageElement = playerArtwork) {
+    let imageBlob = null;
+    const record = await db.artworks.get(path);
+    if (record) {
+        imageBlob = record.image;
+    } else if (path !== rootPath) {
+        // フォールバックしてルートディレクトリのアートワークを探す
+        const rootRecord = await db.artworks.get(rootPath);
+        if (rootRecord) {
+            imageBlob = rootRecord.image;
+        }
+    }
+
+    if (imageBlob) {
+        targetImageElement.src = URL.createObjectURL(imageBlob);
+    } else {
+        targetImageElement.src = ''; // アートワークがない場合は空白
+    }
+}
+
 function handleTreeClick(event) {
     const liElement = event.target.closest('li');
     if (!liElement) return;
 
     if (event.target.matches('.toggle-button')) {
-        // ▼▼▼ 修正箇所 ▼▼▼
         const folderPath = liElement.dataset.folderPath;
         if (!folderPath) return;
-
-        // これからなるべき状態を先に決定 (現在開いていなければ、開くべき)
         const shouldBeOpen = !liElement.classList.contains('open');
-        
-        // 同じパスを持つすべてのフォルダ要素を両方のツリーから取得
         const allFolderElements = document.querySelectorAll(`.folder-item[data-folder-path="${folderPath}"]`);
-
-        // すべての要素の状態を同期させる
         allFolderElements.forEach(folderEl => {
             folderEl.classList.toggle('open', shouldBeOpen);
             const button = folderEl.querySelector('.toggle-button');
@@ -280,7 +332,6 @@ function handleTreeClick(event) {
                 button.textContent = shouldBeOpen ? '折り畳み' : '展開';
             }
         });
-        // ▲▲▲ 修正ここまで ▲▲▲
     } else if (event.target.closest('.item-content')) {
         if (liElement.matches('.folder-item')) {
             handleFolderSelect(liElement);
@@ -343,30 +394,31 @@ async function playSong(songRecord) {
 	const songDisplayName = (props.name && props.name.trim() !== '') ? props.name : (file.name.substring(0, file.name.lastIndexOf('.')) || file.name);
 	playerSongName.textContent = songDisplayName;
 	let gameName = 'N/A';
+    let gameFolderPath = rootPath; // デフォルトはルート
 	const pathParts = songRecord.path.split('/');
 	for (let i = pathParts.length - 2; i >= 0; i--) {
 		const parentPath = pathParts.slice(0, i + 1).join('/');
 		const parentProps = songProperties[parentPath] || {};
 		if (parentProps.isGame) {
 			gameName = (parentProps.name && parentProps.name.trim() !== '') ? parentProps.name : pathParts[i];
+            gameFolderPath = parentPath;
 			break;
 		}
 	}
 	playerGameName.textContent = gameName;
+    await displayArtwork(gameFolderPath);
+
     if(activeRandomFolderPath) {
         const folderProps = songProperties[activeRandomFolderPath] || {};
         playerFolderName.textContent = folderProps.name || activeRandomFolderPath.split('/').pop();
     } else {
         playerFolderName.textContent = '全曲';
     }
-	const svgIcon = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='512' height='512'><rect width='24' height='24' fill='#7e57c2'/><path fill='white' d='M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4%201.79-4%204s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z'/></svg>`;
-	const artworkURL = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgIcon)}`;
-    playerArtwork.src = artworkURL;
 
 	if ('mediaSession' in navigator) {
 		navigator.mediaSession.metadata = new MediaMetadata({
 			title: songDisplayName, artist: gameName, album: '多機能ミュージックリスト',
-			artwork: [ { src: artworkURL, sizes: '512x512', type: 'image/svg+xml' } ]
+			artwork: [ { src: playerArtwork.src, sizes: '512x512', type: 'image/png' } ] // 仮にpngとする
 		});
 		navigator.mediaSession.setActionHandler('play', () => audioPlayer.play());
 		navigator.mediaSession.setActionHandler('pause', () => audioPlayer.pause());
@@ -404,8 +456,8 @@ function playNextSong() {
         nextSongToPlay = null;
         return;
     }
-    if (!activeRandomFolderPath && libraryFiles.length > 0) {
-        activeRandomFolderPath = libraryFiles[0].path.split('/')[0];
+    if (!activeRandomFolderPath && rootPath) {
+        activeRandomFolderPath = rootPath;
     }
     if (!activeRandomFolderPath) return;
 
@@ -667,7 +719,7 @@ function createTreeViewHTML(node, currentPath = '') {
     return ul;
 }
 
-function showPropertiesPanel(resetData = true) {
+async function showPropertiesPanel(resetData = true) {
     if (!selectedItemPath || !detailSettingsView.classList.contains('active')) {
         propertiesPanel.style.display = 'none';
         return;
@@ -679,6 +731,13 @@ function showPropertiesPanel(resetData = true) {
         propItemName.textContent = selectedItemPath.split('/').pop();
         propDisplayName.value = props.name || '';
         propIsGame.checked = props.isGame || false;
+        
+        const isGameFolder = propIsGame.checked;
+        artworkManagementUI.classList.toggle('hidden', !isGameFolder);
+        if (isGameFolder) {
+            await displayArtwork(selectedItemPath, artworkPreview);
+        }
+
         songSpecificSettings.style.display = 'none';
         folderSpecificSettings.style.display = 'block';
     } else {
@@ -752,10 +811,20 @@ async function loadDataFromDB() {
             libraryFiles = songData;
             songProperties = props || {};
             recentlyPlayed = recent || [];
-            if (libraryFiles.length > 0) {
-                activeRandomFolderPath = libraryFiles[0].path.split('/')[0];
-            }
+            
             fileTree = buildFileTree(libraryFiles);
+            rootPath = Object.keys(fileTree)[0] || null;
+
+            if(rootPath && !songProperties[rootPath]){
+                 songProperties[rootPath] = {};
+            }
+            if(rootPath){
+                songProperties[rootPath].isGame = true; // ルートは常にGameフォルダ
+            }
+
+            if (!activeRandomFolderPath) {
+                activeRandomFolderPath = rootPath;
+            }
             renderTreeView();
         } else {
             libraryFiles = [];

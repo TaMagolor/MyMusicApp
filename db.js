@@ -4,16 +4,28 @@
 const db = new Dexie('mymusicapp_db');
 
 // データベースの構造（テーブルとインデックス）を定義
-db.version(1).stores({
+// ▼▼▼ version(1) から version(2) へ更新 ▼▼▼
+db.version(2).stores({
     // 'songs' テーブル
     // 'path' (webkitRelativePath) を主キー（ユニークなID）とする
-    // 'diskPath' はElectronでの物理パス
-    songs: 'path, diskPath',
+    songs: 'path',
 
     // 'properties' テーブル
     // 'key' (設定名) を主キーとする
+    properties: 'key',
+
+    // ▼▼▼ 以下を新しく追加 ▼▼▼
+    // 'artworks' テーブル
+    // 'path' (フォルダのパス) を主キーとする
+    artworks: 'path'
+});
+
+// version(1)は変更なし
+db.version(1).stores({
+    songs: 'path, diskPath',
     properties: 'key'
 });
+
 
 // --- 全ての曲を取得 ---
 async function getAllSongs() {
