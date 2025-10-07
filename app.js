@@ -1,7 +1,7 @@
 // =================================================================
 // Application Version
 // =================================================================
-const APP_VERSION = 'v.3.8.0'; // Implemented folder-based artwork management
+const APP_VERSION = 'v.3.8.1'; // Fixed property panel UI bugs
 
 // =================================================================
 // HTML Element Acquisition
@@ -126,7 +126,11 @@ lyricsLanguageSelector.addEventListener('click', handleLanguageChange);
 audioPlayer.addEventListener('ended', handleSongEnd);
 propLyricsTimings.addEventListener('input', autoResizeLyricsEditor);
 propLyricsText.addEventListener('input', autoResizeLyricsEditor);
-propIsGame.addEventListener('change', () => showPropertiesPanel(false)); // Gameフォルダチェック時にUIを更新
+// ▼▼▼ 修正箇所 ▼▼▼
+propIsGame.addEventListener('change', () => {
+    // UIの表示/非表示を切り替えるだけにする
+    artworkManagementUI.classList.toggle('hidden', !propIsGame.checked);
+});
 artworkUploadInput.addEventListener('change', handleArtworkUpload);
 artworkRemoveButton.addEventListener('click', handleArtworkRemove);
 
@@ -302,7 +306,6 @@ async function displayArtwork(path, targetImageElement = playerArtwork) {
     if (record) {
         imageBlob = record.image;
     } else if (path !== rootPath) {
-        // フォールバックしてルートディレクトリのアートワークを探す
         const rootRecord = await db.artworks.get(rootPath);
         if (rootRecord) {
             imageBlob = rootRecord.image;
@@ -312,7 +315,7 @@ async function displayArtwork(path, targetImageElement = playerArtwork) {
     if (imageBlob) {
         targetImageElement.src = URL.createObjectURL(imageBlob);
     } else {
-        targetImageElement.src = ''; // アートワークがない場合は空白
+        targetImageElement.src = '';
     }
 }
 
@@ -394,7 +397,7 @@ async function playSong(songRecord) {
 	const songDisplayName = (props.name && props.name.trim() !== '') ? props.name : (file.name.substring(0, file.name.lastIndexOf('.')) || file.name);
 	playerSongName.textContent = songDisplayName;
 	let gameName = 'N/A';
-    let gameFolderPath = rootPath; // デフォルトはルート
+    let gameFolderPath = rootPath;
 	const pathParts = songRecord.path.split('/');
 	for (let i = pathParts.length - 2; i >= 0; i--) {
 		const parentPath = pathParts.slice(0, i + 1).join('/');
@@ -418,7 +421,7 @@ async function playSong(songRecord) {
 	if ('mediaSession' in navigator) {
 		navigator.mediaSession.metadata = new MediaMetadata({
 			title: songDisplayName, artist: gameName, album: '多機能ミュージックリスト',
-			artwork: [ { src: playerArtwork.src, sizes: '512x512', type: 'image/png' } ] // 仮にpngとする
+			artwork: [ { src: playerArtwork.src, sizes: '512x512', type: 'image/png' } ]
 		});
 		navigator.mediaSession.setActionHandler('play', () => audioPlayer.play());
 		navigator.mediaSession.setActionHandler('pause', () => audioPlayer.pause());

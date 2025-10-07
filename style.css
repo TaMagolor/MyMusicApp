@@ -50,16 +50,6 @@ input[type="file"] { display: none; }
 #player-folder-name-container .folder-label { display: block; text-align: left; font-size: 0.9em; }
 #player-folder-name { display: block; text-align: center; font-size: 1.1em; font-weight: bold; margin-top: 2px; }
 
-/* 耐久モードUI */
-#durability-mode-container { position: relative; width: 90%; max-width: 400px; margin-top: 10px; }
-#durability-mode-button { width: 100%; background-color: #3a3a3c; }
-#durability-options {
-    position: absolute; bottom: 110%; left: 0; right: 0; background-color: #2c2c2e;
-    border-radius: 12px; padding: 8px; box-shadow: 0 -4px 12px rgba(0,0,0,0.4);
-    display: flex; flex-direction: column; gap: 5px; z-index: 10;
-}
-#durability-options button { width: 100%; text-align: center; background-color: #3a3a3c; border: none; border-radius: 8px; padding: 10px; font-size: 0.9em; }
-
 /* ▼▼▼ プレイヤー画面の表示モードごとのレイアウト ▼▼▼ */
 /* 1-a. 通常表示 */
 .view-normal #player-main-ui { flex-grow: 1; }
@@ -103,7 +93,6 @@ input[type="file"] { display: none; }
     padding: 15px;
     box-sizing: border-box;
     height: 100%;
-    /* 修正: transformプロパティを削除 */
 }
 .view-partial .lyrics-panel,
 .view-full .lyrics-panel {
@@ -115,7 +104,7 @@ input[type="file"] { display: none; }
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    font-size: 0.88em; /* 修正: 1.1em * 0.8 */
+    font-size: 0.88em;
     line-height: 1.6;
     text-align: center;
     height: var(--partial-lyrics-panel-height);
@@ -125,7 +114,7 @@ input[type="file"] { display: none; }
 #partial-lyrics-display p.current-lyric { color: #fff; font-weight: bold; font-size: 1.2em; }
 
 #full-lyrics-display {
-    font-size: 0.96em; /* 修正: 1.2em * 0.8 */
+    font-size: 0.96em;
     line-height: 1.8;
 }
 #full-lyrics-display p { margin: 0.5em 0; opacity: 0.6; }
@@ -192,6 +181,8 @@ input[type="file"] { display: none; }
 #prop-lyrics-text {
     flex: 1 1 auto;
 }
+/* ▼▼▼ 以下を一行追加 ▼▼▼ */
+#artwork-management-ui { margin-bottom: 20px; }
 
 /* --- 共通ツリービュー --- */
 .tree-view ul { padding-left: 12px; list-style-type: none; }
