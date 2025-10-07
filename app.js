@@ -1,7 +1,7 @@
 // =================================================================
 // Application Version
 // =================================================================
-const APP_VERSION = 'v.3.5.1'; // Removed Web Audio API for background playback compatibility
+const APP_VERSION = 'v.3.7.1'; // Synchronized folder states between tree views
 
 // =================================================================
 // HTML Element Acquisition
@@ -262,8 +262,25 @@ function handleTreeClick(event) {
     if (!liElement) return;
 
     if (event.target.matches('.toggle-button')) {
-        liElement.classList.toggle('open');
-        event.target.textContent = liElement.classList.contains('open') ? '折り畳み' : '展開';
+        // ▼▼▼ 修正箇所 ▼▼▼
+        const folderPath = liElement.dataset.folderPath;
+        if (!folderPath) return;
+
+        // これからなるべき状態を先に決定 (現在開いていなければ、開くべき)
+        const shouldBeOpen = !liElement.classList.contains('open');
+        
+        // 同じパスを持つすべてのフォルダ要素を両方のツリーから取得
+        const allFolderElements = document.querySelectorAll(`.folder-item[data-folder-path="${folderPath}"]`);
+
+        // すべての要素の状態を同期させる
+        allFolderElements.forEach(folderEl => {
+            folderEl.classList.toggle('open', shouldBeOpen);
+            const button = folderEl.querySelector('.toggle-button');
+            if (button) {
+                button.textContent = shouldBeOpen ? '折り畳み' : '展開';
+            }
+        });
+        // ▲▲▲ 修正ここまで ▲▲▲
     } else if (event.target.closest('.item-content')) {
         if (liElement.matches('.folder-item')) {
             handleFolderSelect(liElement);
