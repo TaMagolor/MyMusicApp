@@ -1,7 +1,7 @@
 // =================================================================
 // Application Version
 // =================================================================
-const APP_VERSION = 'v.3.8.1'; // Fixed property panel UI bugs
+const APP_VERSION = 'v.3.8.2'; // Fixed property panel UI bugs
 
 // =================================================================
 // HTML Element Acquisition
