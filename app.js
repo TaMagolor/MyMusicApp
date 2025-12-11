@@ -1,7 +1,7 @@
 // =================================================================
 // Application Version
 // =================================================================
-const APP_VERSION = 'v.3.9.1'; // Fixed property panel UI bugs
+const APP_VERSION = 'v.3.9.4'; // Fixed property panel UI bugs
 
 // =================================================================
 // HTML Element Acquisition
@@ -528,7 +528,7 @@ function handleViewToggle(event) {
 
 function switchLyricsView(view) {
     currentPlayerView = view;
-    playerScreen.className = 'screen active';
+    playerScreen.classList.remove('view-normal', 'view-partial', 'view-full');
     playerScreen.classList.add(`view-${view}`);
     
     lyricsViewToggle.querySelectorAll('button').forEach(btn => {
