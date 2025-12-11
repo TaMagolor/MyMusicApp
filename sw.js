@@ -1,12 +1,13 @@
 // ▼▼▼ バージョン番号を管理する新しい定数 ▼▼▼
-const CACHE_NAME = 'music-app-cache-v9'; // 更新のたびにここのバージョンを変える
+const CACHE_NAME = 'music-app-cache-v10'; // 更新のたびにここのバージョンを変える
 const urlsToCache = [
 	'/',
 	'/index.html',
 	'/style.css',
 	'/app.js',
 	'/db.js',
-	'/manifest.json'
+	'/manifest.json',
+	'/fonts/NewWorld.ttf'
 	// アイコンファイル（例: icon-192x192.png）もここに追加すると、より完全なオフライン対応になります
 ];
 

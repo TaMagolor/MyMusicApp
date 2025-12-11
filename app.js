@@ -1,7 +1,7 @@
 // =================================================================
 // Application Version
 // =================================================================
-const APP_VERSION = 'v.3.8.2'; // Fixed property panel UI bugs
+const APP_VERSION = 'v.3.9.1'; // Fixed property panel UI bugs
 
 // =================================================================
 // HTML Element Acquisition
@@ -64,6 +64,8 @@ const artworkManagementUI = document.getElementById('artwork-management-ui');
 const artworkPreview = document.getElementById('artwork-preview');
 const artworkUploadInput = document.getElementById('artwork-upload-input');
 const artworkRemoveButton = document.getElementById('artwork-remove-button');
+const ctrlPrevButton = document.getElementById('ctrl-prev-button');
+const ctrlNextButton = document.getElementById('ctrl-next-button');
 const loadingOverlay = document.createElement('div');
 loadingOverlay.id = 'loading-overlay';
 loadingOverlay.innerHTML = '<div>データを処理中...</div>';
@@ -133,6 +135,12 @@ propIsGame.addEventListener('change', () => {
 });
 artworkUploadInput.addEventListener('change', handleArtworkUpload);
 artworkRemoveButton.addEventListener('click', handleArtworkRemove);
+if (ctrlPrevButton) {
+    ctrlPrevButton.addEventListener('click', rewindFiveSeconds);
+}
+if (ctrlNextButton) {
+    ctrlNextButton.addEventListener('click', playNextSong);
+}
 
 
 // =================================================================
@@ -297,6 +305,12 @@ function handleSongEnd(event) {
     setTimeout(playNextSong, 800);
 }
 
+function rewindFiveSeconds() {
+    if (audioPlayer) {
+        audioPlayer.currentTime = Math.max(audioPlayer.currentTime - 5, 0);
+    }
+}
+
 // =================================================================
 // Core Functions
 // =================================================================
@@ -426,7 +440,7 @@ async function playSong(songRecord) {
 		navigator.mediaSession.setActionHandler('play', () => audioPlayer.play());
 		navigator.mediaSession.setActionHandler('pause', () => audioPlayer.pause());
 		navigator.mediaSession.setActionHandler('nexttrack', () => playNextSong());
-		navigator.mediaSession.setActionHandler('previoustrack', () => { audioPlayer.currentTime = Math.max(audioPlayer.currentTime - 5, 0); });
+		navigator.mediaSession.setActionHandler('previoustrack', () => rewindFiveSeconds());
 		try {
 			navigator.mediaSession.setActionHandler('seekto', (details) => { audioPlayer.currentTime = details.seekTime; });
 		} catch (error) { console.log('seekto is not supported.'); }
@@ -442,6 +456,8 @@ async function playSong(songRecord) {
             }))
         };
         currentLyricsLang = 0;
+        const initialLangName = currentLyricsData.languages[0].name;
+        applyLanguageStyle(initialLangName);
         lyricsContainer.classList.remove('hidden');
         setupLyricsControls(currentLyricsData.languages);
         switchLyricsView('normal');
@@ -531,6 +547,8 @@ function handleLanguageChange(event) {
         lyricsLanguageSelector.querySelectorAll('button').forEach(btn => {
             btn.classList.toggle('active', parseInt(btn.dataset.lang, 10) === currentLyricsLang);
         });
+        const newLangName = currentLyricsData.languages[currentLyricsLang].name;
+        applyLanguageStyle(newLangName);
         if (currentPlayerView === 'full') renderFullLyrics();
         updateLyricsDisplay();
     }
@@ -819,7 +837,7 @@ async function loadDataFromDB() {
             rootPath = Object.keys(fileTree)[0] || null;
 
             if(rootPath && !songProperties[rootPath]){
-                 songProperties[rootPath] = {};
+                songProperties[rootPath] = {};
             }
             if(rootPath){
                 songProperties[rootPath].isGame = true; // ルートは常にGameフォルダ
@@ -931,5 +949,21 @@ function updateMediaPosition() {
             playbackRate: audioPlayer.playbackRate,
             position: audioPlayer.currentTime || 0,
         });
+    }
+}
+
+function applyLanguageStyle(langName) {
+    const isNewWorld = (langName === '新世界語');
+    
+    // 部分表示と全文表示の両方のコンテナを取得
+    const partialContainer = document.getElementById('partial-lyrics-display');
+    const fullContainer = document.getElementById('full-lyrics-display');
+
+    if (isNewWorld) {
+        partialContainer.classList.add('lang-newworld');
+        fullContainer.classList.add('lang-newworld');
+    } else {
+        partialContainer.classList.remove('lang-newworld');
+        fullContainer.classList.remove('lang-newworld');
     }
 }
