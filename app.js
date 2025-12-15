@@ -1,7 +1,7 @@
 // =================================================================
 // Application Version
 // =================================================================
-const APP_VERSION = 'v.3.9.4'; // Fixed property panel UI bugs
+const APP_VERSION = 'v.3.10.0'; // Fixed property panel UI bugs
 
 // =================================================================
 // HTML Element Acquisition
@@ -23,6 +23,7 @@ const listRandomButton = document.getElementById('list-random-button');
 const fileInput = document.getElementById('fileInput');
 const exportButton = document.getElementById('export-settings-button');
 const importInput = document.getElementById('import-settings-input');
+const artworkFolderInput = document.getElementById('artwork-folder-input');
 const gotoDetailSettingsButton = document.getElementById('goto-detail-settings-button');
 const settingsTreeViewContainer = document.getElementById('settings-tree-view-container');
 const backToMainSettingsButton = document.getElementById('back-to-main-settings-button');
@@ -118,6 +119,9 @@ fileInput.addEventListener('change', handleFileInputChange);
 savePropertiesButton.addEventListener('click', handleSaveProperties);
 exportButton.addEventListener('click', handleExport);
 importInput.addEventListener('change', handleImport);
+if (artworkFolderInput) {
+    artworkFolderInput.addEventListener('change', handleArtworkFolderRecovery);
+}
 audioPlayer.addEventListener('timeupdate', handleTimeUpdate);
 propLoopCompatible.addEventListener('change', handleLoopCompatibleChange);
 propLyricsCompatible.addEventListener('change', handleLyricsCompatibleChange);
@@ -128,7 +132,6 @@ lyricsLanguageSelector.addEventListener('click', handleLanguageChange);
 audioPlayer.addEventListener('ended', handleSongEnd);
 propLyricsTimings.addEventListener('input', autoResizeLyricsEditor);
 propLyricsText.addEventListener('input', autoResizeLyricsEditor);
-// ▼▼▼ 修正箇所 ▼▼▼
 propIsGame.addEventListener('change', () => {
     // UIの表示/非表示を切り替えるだけにする
     artworkManagementUI.classList.toggle('hidden', !propIsGame.checked);
@@ -255,6 +258,7 @@ async function handleArtworkUpload(event) {
     await db.artworks.put({ path: selectedItemPath, image: file });
     const props = songProperties[selectedItemPath] || {};
     props.hasArtwork = true;
+    props.artworkFileName = file.name;
     songProperties[selectedItemPath] = props;
     await saveProperties('songProperties', songProperties);
     
@@ -308,6 +312,74 @@ function handleSongEnd(event) {
 function rewindFiveSeconds() {
     if (audioPlayer) {
         audioPlayer.currentTime = Math.max(audioPlayer.currentTime - 5, 0);
+    }
+}
+
+async function handleArtworkFolderRecovery(event) {
+    const files = Array.from(event.target.files);
+    if (files.length === 0) return;
+
+    showLoading(`画像を解析中... (0 / ${files.length})`);
+
+    try {
+        // 1. アップロードされた画像をファイル名で検索できるようにマップ化する
+        // (同じファイル名がある場合は後勝ちになります)
+        const imageMap = new Map();
+        for (const file of files) {
+            imageMap.set(file.name, file);
+        }
+
+        let restoredCount = 0;
+        const paths = Object.keys(songProperties);
+        
+        // 2. 全ての設定済みパス（Gameフォルダ等）を探索
+        for (let i = 0; i < paths.length; i++) {
+            const path = paths[i];
+            const props = songProperties[path];
+
+            // Gameフォルダであり、かつ画像ファイル名が記録されている場合
+            if (props && props.isGame && props.artworkFileName) {
+                // アップロードされたフォルダの中に、そのファイル名があるか確認
+                const imageFile = imageMap.get(props.artworkFileName);
+
+                if (imageFile) {
+                    // DBに登録 (パスと画像を紐付け)
+                    await db.artworks.put({ path: path, image: imageFile });
+                    
+                    // プロパティの状態も更新（念のため）
+                    props.hasArtwork = true;
+                    songProperties[path] = props;
+                    
+                    restoredCount++;
+                }
+            }
+
+            // 進捗表示の更新 (10件ごと)
+            if (i % 10 === 0) {
+                updateLoadingMessage(`アートワーク復元中... (${restoredCount}件 完了)`);
+            }
+        }
+
+        // 変更されたプロパティを保存
+        await saveProperties('songProperties', songProperties);
+        
+        // 現在表示中の画面のアートワーク等を更新するために再描画
+        if (selectedItemPath && isSelectedItemFolder) {
+             // 詳細設定画面を開いている場合
+            await showPropertiesPanel(false); 
+        } else if (rootPath) {
+             // プレイヤー画面の場合
+            await displayArtwork(rootPath);
+        }
+
+        alert(`${restoredCount} 件のアートワークを復元しました。`);
+
+    } catch (error) {
+        console.error('Artwork recovery failed:', error);
+        alert('アートワークの復元中にエラーが発生しました。');
+    } finally {
+        hideLoading();
+        event.target.value = ''; // 入力をリセット
     }
 }
 
