@@ -102,6 +102,14 @@
                     </div>
                     <div id="folder-specific-settings">
                         <div class="prop-details"><label><input type="checkbox" id="prop-is-game"> Gameフォルダとしてマーク</label></div>
+                        <div class="prop-details">
+                            <label><input type="checkbox" id="prop-is-derivative"> 派生曲を持つ</label>
+                        </div>
+                        <div id="derivative-settings-panel" class="hidden">
+                            <div class="prop-details">
+                                <label>抽選倍率: <input type="number" id="prop-derivative-multiplier" min="0" step="0.0001" value="1.0"></label>
+                            </div>
+                        </div>
                         <div id="artwork-management-ui" class="hidden">
                             <p>アートワーク設定:</p>
                             <img id="artwork-preview" src="" alt="Artwork Preview" style="max-width: 100px; max-height: 100px; display: block; margin-bottom: 10px;">
@@ -109,6 +117,11 @@
                             <input type="file" id="artwork-upload-input" accept="image/*">
                             <button id="artwork-remove-button" style="font-size: 0.9em; padding: 8px 16px; background-color: #555;">画像を取り消し</button>
                         </div>
+                    </div>
+                    <div class="prop-details">
+                        <label>メモ: 
+                            <textarea id="prop-memo" placeholder="ここにメモを入力..."></textarea>
+                        </label>
                     </div>
                     <button id="save-properties-button">設定を保存</button>
                 </div>

@@ -162,6 +162,12 @@ input[type="file"] { display: none; }
 }
 .prop-details.readonly span { color: #aaa; font-size: 0.9em; }
 #loop-settings-panel, #lyrics-settings-panel { border-left: 3px solid #555; padding-left: 10px; margin-top: 15px; }
+#derivative-settings-panel {
+    border-left: 3px solid #555;
+    padding-left: 10px;
+    margin-top: 5px;
+    margin-bottom: 10px;
+}
 .lyrics-editor {
     display: flex;
     flex-direction: row;
@@ -187,8 +193,24 @@ input[type="file"] { display: none; }
 #prop-lyrics-text {
     flex: 1 1 auto;
 }
-/* ▼▼▼ 以下を一行追加 ▼▼▼ */
+
 #artwork-management-ui { margin-bottom: 20px; }
+
+#prop-memo {
+    width: 100%;
+    min-height: 60px; /* 初期の高さ */
+    background-color: #333;
+    border: 1px solid #555;
+    border-radius: 5px;
+    color: #fff;
+    padding: 8px;
+    font-family: inherit; /* フォントを親に合わせる */
+    resize: none; /* 手動リサイズを無効化（自動調整するため） */
+    overflow-y: hidden; /* スクロールバーを出さない */
+    box-sizing: border-box;
+    line-height: 1.5;
+    margin-top: 5px;
+}
 
 /* --- 共通ツリービュー --- */
 .tree-view ul { padding-left: 12px; list-style-type: none; }

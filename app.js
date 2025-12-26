@@ -1,7 +1,7 @@
 // =================================================================
 // Application Version
 // =================================================================
-const APP_VERSION = 'v.3.10.0'; // Fixed property panel UI bugs
+const APP_VERSION = 'v.4.0.0'; // Fixed property panel UI bugs
 
 // =================================================================
 // HTML Element Acquisition
@@ -48,6 +48,9 @@ const propLoopEnd = document.getElementById('prop-loop-end');
 const propLoopStartAuto = document.getElementById('prop-loop-start-auto');
 const propLoopEndAuto = document.getElementById('prop-loop-end-auto');
 const playerMainUI = document.getElementById('player-main-ui');
+const propIsDerivative = document.getElementById('prop-is-derivative');
+const derivativeSettingsPanel = document.getElementById('derivative-settings-panel');
+const propDerivativeMultiplier = document.getElementById('prop-derivative-multiplier');
 const lyricsContainer = document.getElementById('lyrics-container');
 const partialLyricsDisplay = document.getElementById('partial-lyrics-display');
 const fullLyricsDisplay = document.getElementById('full-lyrics-display');
@@ -65,6 +68,7 @@ const artworkManagementUI = document.getElementById('artwork-management-ui');
 const artworkPreview = document.getElementById('artwork-preview');
 const artworkUploadInput = document.getElementById('artwork-upload-input');
 const artworkRemoveButton = document.getElementById('artwork-remove-button');
+const propMemo = document.getElementById('prop-memo');
 const ctrlPrevButton = document.getElementById('ctrl-prev-button');
 const ctrlNextButton = document.getElementById('ctrl-next-button');
 const loadingOverlay = document.createElement('div');
@@ -124,6 +128,11 @@ if (artworkFolderInput) {
 }
 audioPlayer.addEventListener('timeupdate', handleTimeUpdate);
 propLoopCompatible.addEventListener('change', handleLoopCompatibleChange);
+if (propIsDerivative) {
+    propIsDerivative.addEventListener('change', () => {
+        derivativeSettingsPanel.classList.toggle('hidden', !propIsDerivative.checked);
+    });
+}
 propLyricsCompatible.addEventListener('change', handleLyricsCompatibleChange);
 propLyricsLangCount.addEventListener('change', handleLyricsSettingChange);
 propLyricsCurrentLang.addEventListener('change', handleLyricsSettingChange);
@@ -138,13 +147,15 @@ propIsGame.addEventListener('change', () => {
 });
 artworkUploadInput.addEventListener('change', handleArtworkUpload);
 artworkRemoveButton.addEventListener('click', handleArtworkRemove);
+if (propMemo) {
+    propMemo.addEventListener('input', () => autoResizeTextarea(propMemo));
+}
 if (ctrlPrevButton) {
     ctrlPrevButton.addEventListener('click', rewindFiveSeconds);
 }
 if (ctrlNextButton) {
     ctrlNextButton.addEventListener('click', playNextSong);
 }
-
 
 // =================================================================
 // Event Handler Functions
@@ -177,9 +188,17 @@ async function handleSaveProperties() {
 	const props = songProperties[selectedItemPath] || {};
 	props.name = propDisplayName.value;
 	props.sortOrder = parseFloat(propSortOrder.value) || 0;
+    props.memo = propMemo.value;
 
 	if (isSelectedItemFolder) {
 		props.isGame = propIsGame.checked;
+        props.isDerivative = propIsDerivative.checked;
+        if (props.isDerivative) {
+            const parsedMultiplier = parseFloat(propDerivativeMultiplier.value);
+            props.multiplier = !isNaN(parsedMultiplier) ? parsedMultiplier : 1.0;
+        } else {
+            delete props.isDerivative;
+        }
 	} else {
 		const parsedMultiplier = parseFloat(propMultiplier.value);
 		props.multiplier = !isNaN(parsedMultiplier) ? parsedMultiplier : 1.0;
@@ -468,10 +487,34 @@ async function playSong(songRecord) {
 
     const file = songRecord.file;
     const props = songProperties[songRecord.path] || {};
-	recentlyPlayed.unshift(songRecord.path);
-	if (recentlyPlayed.length > 200) recentlyPlayed.pop();
-	await saveProperties('recentlyPlayed', recentlyPlayed);
+
+    // ▼▼▼ 履歴追加ロジック ▼▼▼
+    let historyPath = songRecord.path;
+    
+    // ★ここで宣言済み (1回目)
+    const pathParts = songRecord.path.split('/');
+    
+    // 配列の後ろ（ファイル名に近い方）から順に親フォルダをチェック
+    for (let i = pathParts.length - 2; i >= 0; i--) {
+        const parentPath = pathParts.slice(0, i + 1).join('/');
+        const parentProps = songProperties[parentPath] || {};
+        
+        if (parentProps.isDerivative) {
+            // 親が派生曲フォルダだった場合、履歴には「フォルダのパス」を採用
+            historyPath = parentPath; 
+            break; // 一番近い派生親を見つけたら終了
+        }
+    }
+
+    // 履歴の先頭と同じでなければ追加（連続再生時の履歴汚染防止）
+    if (recentlyPlayed[0] !== historyPath) {
+        recentlyPlayed.unshift(historyPath);
+        if (recentlyPlayed.length > 200) recentlyPlayed.pop();
+        await saveProperties('recentlyPlayed', recentlyPlayed);
+    }
+    // ▲▲▲ 履歴処理ここまで ▲▲▲
 	
+    // --- 以下、既存の再生処理 ---
     audioPlayer.src = URL.createObjectURL(file);
 
 	try {
@@ -484,7 +527,10 @@ async function playSong(songRecord) {
 	playerSongName.textContent = songDisplayName;
 	let gameName = 'N/A';
     let gameFolderPath = rootPath;
-	const pathParts = songRecord.path.split('/');
+    
+    // ★修正: ここにあった `const pathParts = ...` を削除しました。
+    // 上で宣言した変数をそのまま使います。
+
 	for (let i = pathParts.length - 2; i >= 0; i--) {
 		const parentPath = pathParts.slice(0, i + 1).join('/');
 		const parentProps = songProperties[parentPath] || {};
@@ -542,54 +588,91 @@ async function playSong(songRecord) {
 }
 
 function playNextSong() {
+    // 1. 再生予約があればそれを優先
     if (nextSongToPlay) {
         playSong(nextSongToPlay);
         nextSongToPlay = null;
         return;
     }
+
+    // 2. 再生範囲（フォルダ）の決定
     if (!activeRandomFolderPath && rootPath) {
         activeRandomFolderPath = rootPath;
     }
     if (!activeRandomFolderPath) return;
 
+    // ★例外対応: もし現在の「再生範囲」自体が派生曲フォルダなら、いきなり内部抽選へ
+    const currentFolderProps = songProperties[activeRandomFolderPath] || {};
+    if (currentFolderProps.isDerivative) {
+        const selectedSong = selectDerivativeSong(activeRandomFolderPath);
+        if (selectedSong) playSong(selectedSong);
+        return;
+    }
+
+    // 3. 候補リストの取得（派生曲フォルダは1アイテムとして混ざっている）
     const playlist = getPlaylist(activeRandomFolderPath);
     if (playlist.length === 0) return;
     
+    // 4. 除外リスト（再生履歴）の準備
+    // 履歴には「曲パス」と「派生フォルダパス」が混ざっているが、文字列比較で除外可能
     const exclusionCount = Math.floor(Math.min(50, playlist.length / 2));
     const excludedPaths = recentlyPlayed.slice(0, exclusionCount);
+    
+    // 5. 重み付けリストの作成
     const weightedList = [];
     let totalWeight = 0;
 
-    for (const record of playlist) {
-        const filePath = record.path;
-        if (excludedPaths.includes(filePath)) continue;
-        const props = songProperties[filePath] || {};
-        const multiplier = (typeof props.multiplier === 'number') ? props.multiplier : 1.0;
+    for (const item of playlist) {
+        // item.path が除外リストにあればスキップ
+        // （派生曲フォルダの場合、フォルダパスが履歴にあるのでここで除外される）
+        if (excludedPaths.includes(item.path)) continue;
+        
+        // 倍率の取得
+        // item.multiplier は getPlaylist でセットしたもの（フォルダの場合）
+        // ファイルの場合は songProperties から取得
+        let multiplier = 1.0;
+        if (item.isFolder) {
+            multiplier = (typeof item.multiplier === 'number') ? item.multiplier : 1.0;
+        } else {
+            const p = songProperties[item.path] || {};
+            multiplier = (typeof p.multiplier === 'number') ? p.multiplier : 1.0;
+        }
+
         if (multiplier > 0) {
-            weightedList.push({ record: record, weight: multiplier });
+            weightedList.push({ item: item, weight: multiplier });
             totalWeight += multiplier;
         }
     }
 
-    let songToPlay = null;
+    // 6. 抽選実行
+    let selectedItem = null;
     if (weightedList.length > 0) {
         let randomValue = Math.random() * totalWeight;
-        for (const item of weightedList) {
-            randomValue -= item.weight;
+        for (const entry of weightedList) {
+            randomValue -= entry.weight;
             if (randomValue <= 0) {
-                songToPlay = item.record;
+                selectedItem = entry.item;
                 break;
             }
         }
     } else if (playlist.length > 0) {
-        const nonExcludedPlaylist = playlist.filter(r => !excludedPaths.includes(r.path));
-        if (nonExcludedPlaylist.length > 0) {
-            songToPlay = nonExcludedPlaylist[Math.floor(Math.random() * nonExcludedPlaylist.length)];
-        } else {
-            songToPlay = playlist[Math.floor(Math.random() * playlist.length)];
-        }
+        // すべて除外されている場合の救済措置（ランダム）
+        const nonExcluded = playlist.filter(i => !excludedPaths.includes(i.path));
+        const targetList = nonExcluded.length > 0 ? nonExcluded : playlist;
+        selectedItem = targetList[Math.floor(Math.random() * targetList.length)];
     }
-    playSong(songToPlay);
+
+    if (!selectedItem) return;
+
+    // 7. 選ばれたアイテムの種類に応じた処理
+    if (selectedItem.isFolder) {
+        // 派生曲フォルダが当たった → その中から1曲選ぶ
+        const song = selectDerivativeSong(selectedItem.path);
+        if (song) playSong(song);
+    } else {
+        // 通常の曲が当たった
+        playSong(selectedItem);
+    }
 }
 
 function handleViewToggle(event) {
@@ -791,7 +874,8 @@ function createTreeViewHTML(node, currentPath = '') {
         if (item.isFolder) {
             li.classList.add('folder-item');
             li.dataset.folderPath = newPath;
-            itemContent.append(`📁 ${displayName}`);
+            const icon = (props.isDerivative) ? '🎵' : '📁';
+            itemContent.textContent = `${icon} ${displayName}`;
             const toggleButton = document.createElement('button');
             toggleButton.className = 'toggle-button';
             toggleButton.textContent = '展開';
@@ -819,6 +903,8 @@ async function showPropertiesPanel(resetData = true) {
     }
     const props = songProperties[selectedItemPath] || {};
     propSortOrder.value = props.sortOrder || 0;
+    propMemo.value = props.memo || '';
+    autoResizeTextarea(propMemo);
 
     if (isSelectedItemFolder) {
         propItemName.textContent = selectedItemPath.split('/').pop();
@@ -830,6 +916,11 @@ async function showPropertiesPanel(resetData = true) {
         if (isGameFolder) {
             await displayArtwork(selectedItemPath, artworkPreview);
         }
+
+        const isDerivative = props.isDerivative || false;
+        propIsDerivative.checked = isDerivative;
+        derivativeSettingsPanel.classList.toggle('hidden', !isDerivative);
+        propDerivativeMultiplier.value = (typeof props.multiplier === 'number') ? props.multiplier : 1.0;
 
         songSpecificSettings.style.display = 'none';
         folderSpecificSettings.style.display = 'block';
@@ -932,15 +1023,116 @@ async function loadDataFromDB() {
     }
 }
 
+// ▼▼▼ 変更: 再生リスト取得ロジック（派生曲フォルダ対応版） ▼▼▼
 function getPlaylist(folderPath) {
-    const targetPath = folderPath || activeRandomFolderPath;
-    if (!targetPath) return [];
-    const pathParts = targetPath.split('/');
+    const root = folderPath || activeRandomFolderPath;
+    if (!root) return [];
+    
+    // パスを基にツリー内の探索開始ノードを特定
+    const pathParts = root.split('/');
     let targetNode = fileTree;
-    for (const part of pathParts) {
-        targetNode = targetNode ? targetNode[part] : undefined;
+    
+    // ルートパス("/") ではない場合、ツリーを降りて対象ノードを探す
+    // ※ fileTreeの構造上、ルートキーから順に辿る必要があるため
+    if (root !== rootPath || (rootPath && rootPath.includes('/'))) {
+        for (const part of pathParts) {
+            targetNode = targetNode ? targetNode[part] : undefined;
+        }
+    } else {
+        // ルートの場合
+        targetNode = fileTree[root] || fileTree;
     }
-    return targetNode ? getFilesFromNode(targetNode) : [];
+
+    if (!targetNode) return [];
+
+    // 探索開始 (再帰関数へ)
+    return traverseForPlaylist(targetNode, root);
+}
+
+// ▼▼▼ 追加: 再生リスト作成用の再帰探索関数 ▼▼▼
+function traverseForPlaylist(node, currentPath) {
+    let candidates = [];
+
+    for (const key in node) {
+        // "path" や "file" プロパティはツリー構造ではないのでスキップ（ファイルのレコードなど）
+        if (key === 'path' || key === 'file') continue; 
+        
+        const value = node[key];
+        
+        // パスを特定する
+        // ファイルなら自分のパスレコードを持っている。フォルダなら現在のパスにキーを足して構築する。
+        const itemPath = (value.file instanceof File) ? value.path : `${currentPath}/${key}`;
+        
+        if (value.file instanceof File) {
+            // [A] 通常のファイルの場合 -> そのまま候補リストへ
+            candidates.push(value);
+        } else {
+            // [B] フォルダの場合
+            const props = songProperties[itemPath] || {};
+            
+            if (props.isDerivative) {
+                // 派生曲フォルダなら、中身を展開せず「1つのアイテム（フォルダ）」として追加
+                candidates.push({ 
+                    path: itemPath, 
+                    isFolder: true, 
+                    // 後の抽選で使うためにここで倍率を取得しておく
+                    multiplier: (typeof props.multiplier === 'number') ? props.multiplier : 1.0 
+                });
+            } else {
+                // カテゴリフォルダ（普通のフォルダ）なら、さらに深く探索（再帰）
+                candidates = candidates.concat(traverseForPlaylist(value, itemPath));
+            }
+        }
+    }
+    return candidates;
+}
+
+// ▼▼▼ 追加: 派生曲フォルダ内での抽選関数 ▼▼▼
+function selectDerivativeSong(folderPath) {
+    // 1. 対象フォルダのノードを特定
+    const pathParts = folderPath.split('/');
+    let node = fileTree;
+    
+    // ルート判定（念のため）
+    if (folderPath === rootPath && fileTree[rootPath]) {
+        node = fileTree[rootPath];
+    } else {
+        for (const part of pathParts) {
+            node = node ? node[part] : undefined;
+        }
+    }
+    
+    if (!node) return null;
+    
+    // 2. フォルダ内の全ファイルをフラットに取得
+    // ※ここで既存の getFilesFromNode を利用します（消さずに残しておいてください）
+    const candidates = getFilesFromNode(node);
+    if (candidates.length === 0) return null;
+
+    // 3. 重み付け抽選ロジック
+    let totalWeight = 0;
+    const weightedList = [];
+
+    for (const record of candidates) {
+        const p = songProperties[record.path] || {};
+        const m = (typeof p.multiplier === 'number') ? p.multiplier : 1.0;
+        if (m > 0) {
+            weightedList.push({ record: record, weight: m });
+            totalWeight += m;
+        }
+    }
+
+    if (weightedList.length === 0) return null;
+
+    let randomValue = Math.random() * totalWeight;
+    for (const item of weightedList) {
+        randomValue -= item.weight;
+        if (randomValue <= 0) {
+            return item.record;
+        }
+    }
+    // 計算誤差対策で、ループを抜けた場合は最後の曲を返す
+    return weightedList[weightedList.length - 1].record;
 }
 
 function getFilesFromNode(node) {
@@ -1038,4 +1230,9 @@ function applyLanguageStyle(langName) {
         partialContainer.classList.remove('lang-newworld');
         fullContainer.classList.remove('lang-newworld');
     }
+}
+
+function autoResizeTextarea(element) {
+    element.style.height = 'auto'; // 一旦高さをリセット
+    element.style.height = element.scrollHeight + 'px'; // 内容に合わせて高さを設定
 }
