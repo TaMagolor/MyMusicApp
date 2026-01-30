@@ -251,12 +251,12 @@ audio.hidden {
     justify-content: center;
     gap: 20px; /* ボタン間の隙間 */
     width: 90%;
+    max-width: 400px; /* PCなどで広がりすぎないための上限 */
     margin-top: 5px;
 }
 
 .control-btn {
-    flex: 1; /* ボタンを均等な幅にする */
-    max-width: 140px;
+    width: 30%;
     padding: 6px 0;
     font-size: 0.8em;
     border-radius: 20px;
@@ -272,11 +272,11 @@ audio.hidden {
 }
 
 .small-btn {
-    flex: 0.8; 
+    width: 30%;
 }
 
 .play-btn {
-    flex: 0.06;
+    width: 12%;
     font-size: 1.2em; /* アイコンを大きく */
     font-weight: bold;
 }
