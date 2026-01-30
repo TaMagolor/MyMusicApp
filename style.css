@@ -143,6 +143,10 @@ input[type="file"] { display: none; }
     background: linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0.8) 50%, rgba(0,0,0,0) 100%);
     padding-bottom: 5px;
 }
+#list-random-button:active {
+    background-color: #555;
+    transform: translateY(1px); /* 軽く押し込む演出 */
+}
 
 /* --- 3. 設定画面 --- */
 .settings-view { width: 100%; height: 100%; display: none; flex-direction: column; }
@@ -250,7 +254,7 @@ audio.hidden {
     flex-direction: row;
     justify-content: center;
     gap: 20px; /* ボタン間の隙間 */
-    width: 90%;
+    width: 100%;
     max-width: 400px; /* PCなどで広がりすぎないための上限 */
     margin-top: 5px;
 }
@@ -290,12 +294,36 @@ audio.hidden {
     display: none !important;
 }
 
-#custom-seekbar-container {
-    width: 90%;
-    max-width: 400px;
-    margin-top: 5px;
-    display: flex;
-    flex-direction: column;
+#custom-seekbar {
+    -webkit-appearance: none; /* OS標準の見た目を無効化 */
+    appearance: none;
+    width: 100%;
+    height: 35px; /* ★当たり判定の高さ（見た目より太く設定） */
+    background: transparent; /* 背景はJSで制御するため透明に */
+    cursor: pointer;
+    margin: 0; /* 余白リセット */
+    accent-color: auto; /* accent-colorは無効化 */
+}
+
+#custom-seekbar::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    height: 16px;
+    width: 16px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+    margin-top: -5px; /* トラックの中央に来るように調整 */
+    position: relative;
+    z-index: 2;
+}
+
+#custom-seekbar::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 6px; /* ★見た目の線の太さ */
+    cursor: pointer;
+    border-radius: 2px;
+    border: none;
+    /* 背景色はJSの style.background で「紫 | 灰色」に塗り分けます */
 }
 
 .time-display {

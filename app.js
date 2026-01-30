@@ -1,7 +1,7 @@
 // =================================================================
 // Application Version
 // =================================================================
-const APP_VERSION = 'v.5.0.7'; // Fixed property panel UI bugs
+const APP_VERSION = 'v.5.0.9'; // Fixed property panel UI bugs
 
 // =================================================================
 // HTML Element Acquisition
@@ -422,6 +422,7 @@ ctrlPrevButton.addEventListener('click', () => {
 customSeekbar.addEventListener('input', () => {
     isDraggingSeekbar = true;
     currentTimeLabel.textContent = formatTime(customSeekbar.value);
+    updateSeekbarVisuals();
 });
 customSeekbar.addEventListener('change', () => {
     if (musicEngine) {
@@ -614,6 +615,7 @@ function handleTimeUpdate() {
             customSeekbar.value = currentTime || 0;
             currentTimeLabel.textContent = formatTime(currentTime);
             totalTimeLabel.textContent = formatTime(duration);
+            updateSeekbarVisuals();
         }
         // 歌詞表示のために audioPlayerの時間を擬似的にハックするのは難しいので、
         // updateLyricsDisplay関数の方で musicEngine.getCurrentTime() を参照するように修正するのがベストです。
@@ -621,6 +623,17 @@ function handleTimeUpdate() {
     } else {
         currentTime = audioPlayer.currentTime;
         duration = audioPlayer.duration;
+
+        if (!isDraggingSeekbar) {
+            const safeDuration = duration || 0;
+            customSeekbar.max = safeDuration || 100;
+            customSeekbar.value = currentTime || 0;
+            currentTimeLabel.textContent = formatTime(currentTime);
+            totalTimeLabel.textContent = formatTime(safeDuration);
+            
+            // 色更新
+            updateSeekbarVisuals();
+        }
     }
     
     updateMediaPosition(currentTime, duration);
@@ -781,7 +794,6 @@ function handleRandomButton() {
         const songRecord = findFileByPath(selectedItemPath);
         if (songRecord) {
             nextSongToPlay = songRecord;
-            if (audioPlayer.paused) playNextSong();
             if (musicEngine && musicEngine.getPaused()) playNextSong();
         }
     }
@@ -1561,4 +1573,18 @@ function applyLanguageStyle(langName) {
 function autoResizeTextarea(element) {
     element.style.height = 'auto'; // 一旦高さをリセット
     element.style.height = element.scrollHeight + 'px'; // 内容に合わせて高さを設定
+}
+
+function updateSeekbarVisuals() {
+    if (!customSeekbar) return;
+    const val = parseFloat(customSeekbar.value) || 0;
+    const max = parseFloat(customSeekbar.max) || 100;
+    const ratio = (max > 0) ? (val / max) * 100 : 0;
+    
+    // linear-gradientで「左からratio%まで紫、そこから右はグレー」にする
+    // 線の太さは background-size の第2引数(4px)で指定
+    customSeekbar.style.background = `linear-gradient(to right, #7e57c2 ${ratio}%, #555 ${ratio}%)`;
+    customSeekbar.style.backgroundSize = `100% 6px`;
+    customSeekbar.style.backgroundRepeat = `no-repeat`;
+    customSeekbar.style.backgroundPosition = `center`;
 }
