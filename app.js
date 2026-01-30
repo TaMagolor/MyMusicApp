@@ -1,11 +1,12 @@
 // =================================================================
 // Application Version
 // =================================================================
-const APP_VERSION = 'v.4.0.0'; // Fixed property panel UI bugs
+const APP_VERSION = 'v.5.0.5'; // Fixed property panel UI bugs
 
 // =================================================================
 // HTML Element Acquisition
 // =================================================================
+const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 const playerScreen = document.getElementById('player-screen');
 const listScreen = document.getElementById('list-screen');
 const settingsScreen = document.getElementById('settings-screen');
@@ -37,6 +38,10 @@ const folderSpecificSettings = document.getElementById('folder-specific-settings
 const propIsGame = document.getElementById('prop-is-game');
 const savePropertiesButton = document.getElementById('save-properties-button');
 const audioPlayer = document.getElementById('audioPlayer');
+const customSeekbarContainer = document.getElementById('custom-seekbar-container');
+const customSeekbar = document.getElementById('custom-seekbar');
+const currentTimeLabel = document.getElementById('current-time');
+const totalTimeLabel = document.getElementById('total-time');
 const versionDisplay = document.getElementById('versionDisplay');
 const loopFeatureContainer = document.getElementById('loop-feature-container');
 const propLoopCompatible = document.getElementById('prop-loop-compatible');
@@ -70,6 +75,7 @@ const artworkUploadInput = document.getElementById('artwork-upload-input');
 const artworkRemoveButton = document.getElementById('artwork-remove-button');
 const propMemo = document.getElementById('prop-memo');
 const ctrlPrevButton = document.getElementById('ctrl-prev-button');
+const ctrlPlayPauseButton = document.getElementById('ctrl-play-pause-button');
 const ctrlNextButton = document.getElementById('ctrl-next-button');
 const loadingOverlay = document.createElement('div');
 loadingOverlay.id = 'loading-overlay';
@@ -80,6 +86,8 @@ document.body.appendChild(loadingOverlay);
 // =================================================================
 // Global Variables
 // =================================================================
+let musicEngine = null;
+let isDraggingSeekbar = false;
 let libraryFiles = [];
 let fileTree = {};
 let selectedItemPath = null;
@@ -88,6 +96,7 @@ let recentlyPlayed = [];
 let songProperties = {};
 let nextSongToPlay = null;
 let activeRandomFolderPath = null;
+let currentSongPath = null;
 let lyricsUpdateInterval = null;
 let currentLyricsData = null;
 let currentLyricsLang = 0;
@@ -95,10 +104,236 @@ let currentPlayerView = 'normal';
 let rootPath = null; // ルートディレクトリのパスを保持
 
 // =================================================================
+// OS class
+// =================================================================
+function initAudioEngine() {
+    if (isIOS) {
+        console.log("Mode: iOS (HTML5 Audio for background play)");
+        musicEngine = new Html5AudioEngine();
+    } else {
+        console.log("Mode: PC/Android (Web Audio API for seamless loop)");
+        musicEngine = new WebAudioEngine();
+    }
+}
+
+// ■ iPhone用エンジン（既存のaudioタグを操作）
+class Html5AudioEngine {
+    constructor() {
+        this.element = document.getElementById('audioPlayer');
+        this.loopStart = 0;
+        this.loopEnd = 0;
+        this.isLooping = false;
+        
+        // ループ監視用
+        this.checkLoop = this.checkLoop.bind(this);
+    }
+
+    play(file, loopStart, loopEnd) {
+        return new Promise((resolve, reject) => {
+            const blobUrl = URL.createObjectURL(file);
+            this.element.src = blobUrl;
+            this.element.load();
+            
+            this.loopStart = loopStart || 0;
+            this.loopEnd = loopEnd || 0;
+            // ループ終了時間が設定されており、かつ開始時間より後ろならループ有効
+            this.isLooping = (this.loopEnd > 0 && this.loopEnd > this.loopStart);
+
+            this.element.play().then(() => {
+                if (this.isLooping) requestAnimationFrame(this.checkLoop);
+                resolve();
+            }).catch(e => reject(e));
+        });
+    }
+
+    checkLoop() {
+        if (!this.isLooping || this.element.paused) return;
+
+        // ループ終了点を超えたら開始点に戻す（ラグは許容）
+        if (this.element.currentTime >= this.loopEnd) {
+            this.element.currentTime = this.loopStart;
+        }
+        requestAnimationFrame(this.checkLoop);
+    }
+
+    seek(time) {
+        if (Number.isFinite(time)) {
+            this.element.currentTime = time;
+        }
+    }
+
+    pause() { this.element.pause(); }
+    
+    // UI同期のために現在の時間を返す
+    getCurrentTime() { return this.element.currentTime; }
+    getDuration() { return this.element.duration; }
+}
+
+// ■ PC/Android用エンジン（Web Audio APIで完璧なループ）
+class WebAudioEngine {
+    constructor() {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        this.ctx = new AudioContext();
+        this.source = null;
+        this.gainNode = this.ctx.createGain();
+        this.gainNode.connect(this.ctx.destination);
+        
+        this.startedAt = 0;
+        this.pausedAt = 0;
+        this.isPlaying = false; // 再生中フラグ
+        this.buffer = null;
+        
+        // シークや再開時に使うためにループ設定を保存しておく変数
+        this.currentLoopStart = 0;
+        this.currentLoopEnd = 0;
+    }
+
+    async play(file, loopStart, loopEnd) {
+        if (this.ctx.state === 'suspended') await this.ctx.resume();
+        
+        // 再生前に前の曲を止める
+        this.isPlaying = false;
+        this.stopSource();
+
+        // ファイルを読み込んでデコード
+        const arrayBuffer = await file.arrayBuffer();
+        this.buffer = await this.ctx.decodeAudioData(arrayBuffer);
+
+        // ループ設定を保存
+        this.currentLoopStart = loopStart;
+        this.currentLoopEnd = loopEnd;
+
+        // 最初から再生
+        this.playBuffer(0);
+    }
+
+    playBuffer(offset) {
+        if (!this.buffer) return;
+        
+        // 重複再生防止（古いソースを止める）
+        this.stopSource();
+
+        // 新しいソースを作成
+        const sourceNode = this.ctx.createBufferSource();
+        sourceNode.buffer = this.buffer;
+        sourceNode.connect(this.gainNode);
+        
+        // クラスのプロパティとして保持
+        this.source = sourceNode;
+
+        // 保存しておいた設定を使ってループを設定
+        if (this.currentLoopEnd > 0 && this.currentLoopEnd > this.currentLoopStart) {
+            this.source.loop = true;
+            this.source.loopStart = this.currentLoopStart;
+            this.source.loopEnd = this.currentLoopEnd;
+        } else {
+            this.source.loop = false;
+        }
+
+        // ★修正ポイント: 変数 sourceNode をクロージャでキャプチャして比較する
+        sourceNode.onended = () => {
+            // イベントを発火したソース(sourceNode)が、現在管理しているソース(this.source)と一致する場合のみ実行
+            // これにより、シーク時などに捨てられた「古いソース」のonendedを無視できる
+            if (this.isPlaying && this.source === sourceNode && !this.source.loop) {
+                this.isPlaying = false;
+                const event = new Event('ended');
+                document.getElementById('audioPlayer').dispatchEvent(event);
+            }
+        };
+
+        this.source.start(0, offset);
+        this.startedAt = this.ctx.currentTime - offset;
+        this.pausedAt = 0;
+        this.isPlaying = true;
+    }
+
+    seek(time) {
+        if (!this.buffer) return;
+        time = Math.max(0, Math.min(time, this.buffer.duration));
+        
+        if (this.isPlaying) {
+            // シーク時は isPlaying を false にしなくて良い（playBuffer内で正しく処理されるため）
+            // ただし古いソースを確実に止める
+            try { this.source.stop(); } catch(e) {}
+            
+            // 指定位置から再生し直す
+            this.playBuffer(time);
+        } else {
+            // 停止中なら位置だけ記録（再開時にここから始まる）
+            this.pausedAt = time;
+        }
+    }
+
+    pause() {
+        if (this.isPlaying) {
+            this.pausedAt = this.getCurrentTime();
+            this.isPlaying = false;
+            this.stopSource();
+            
+            if (this.ctx.state === 'running') this.ctx.suspend();
+        }
+    }
+
+    async resume() {
+        if (this.ctx.state === 'suspended') await this.ctx.resume();
+        
+        // 停止中かつバッファがある場合、音の部品を作り直して再生
+        if (!this.isPlaying && this.buffer) {
+            this.playBuffer(this.pausedAt);
+        }
+    }
+
+    stopSource() {
+        if (this.source) {
+            try { this.source.stop(); } catch(e) {}
+            // 切断するが、this.source = null はしない（onendedの比較で null になると困る場合があるため）
+            // ただし playBuffer で this.source は上書きされるので問題ない
+            this.source.disconnect();
+        }
+    }
+
+    stop() {
+        this.isPlaying = false;
+        this.stopSource();
+        this.source = null; // 完全停止時は消して良い
+        this.pausedAt = 0;
+    }
+
+    getCurrentTime() {
+        if (this.ctx.state === 'suspended' || !this.isPlaying) return this.pausedAt; 
+        
+        let time = this.ctx.currentTime - this.startedAt;
+        
+        // ループ再生中の時間計算
+        if(this.source && this.source.loop) {
+            const duration = this.source.loopEnd - this.source.loopStart;
+            if(time >= this.source.loopStart) {
+                time = this.source.loopStart + ((time - this.source.loopStart) % duration);
+            }
+        }
+        return Math.max(0, time);
+    }
+    
+    getDuration() { return this.buffer ? this.buffer.duration : 0; }
+    getPaused() { return !this.isPlaying; }
+}
+
+// =================================================================
 // Application Initialization
 // =================================================================
 window.addEventListener('load', async () => {
 	console.log('App loading...');
+    if (isIOS) {
+        musicEngine = new Html5AudioEngine();
+        console.log("Mode: iOS (HTML5 Audio)");
+    } else {
+        musicEngine = new WebAudioEngine();
+        console.log("Mode: PC (Web Audio API)");
+        // PCモードはUI更新ループを開始
+        setInterval(handleTimeUpdate, 100);
+    }
+    audioPlayer.classList.add('hidden'); // class="hidden" を強制
+    customSeekbarContainer.classList.remove('hidden');
 	if (versionDisplay) {
 		versionDisplay.textContent = APP_VERSION;
 	}
@@ -150,9 +385,39 @@ artworkRemoveButton.addEventListener('click', handleArtworkRemove);
 if (propMemo) {
     propMemo.addEventListener('input', () => autoResizeTextarea(propMemo));
 }
-if (ctrlPrevButton) {
-    ctrlPrevButton.addEventListener('click', rewindFiveSeconds);
-}
+ctrlPlayPauseButton.addEventListener('click', () => {
+    if (!musicEngine) return;
+    
+    // 曲が入っていない（初期状態）のときだけ、Nextボタンと同じ処理（ランダム再生等）を行う
+    if (musicEngine.getDuration() === 0 && !currentSongPath) {
+        handleRandomButton(); 
+        return;
+    }
+
+    // それ以外は、現在セットされている曲を 再生/一時停止 するだけ
+    if (musicEngine.getPaused()) {
+        musicEngine.resume();
+    } else {
+        musicEngine.pause();
+    }
+});
+ctrlPrevButton.addEventListener('click', () => {
+    if (musicEngine) {
+        const current = musicEngine.getCurrentTime();
+        musicEngine.seek(Math.max(0, current - 5));
+    }
+});
+customSeekbar.addEventListener('input', () => {
+    isDraggingSeekbar = true;
+    currentTimeLabel.textContent = formatTime(customSeekbar.value);
+});
+customSeekbar.addEventListener('change', () => {
+    if (musicEngine) {
+        // 数値に変換して渡す
+        musicEngine.seek(parseFloat(customSeekbar.value));
+    }
+    isDraggingSeekbar = false;
+});
 if (ctrlNextButton) {
     ctrlNextButton.addEventListener('click', playNextSong);
 }
@@ -319,7 +584,34 @@ function handleLyricsCompatibleChange() {
 }
 
 function handleTimeUpdate() {
-    updateMediaPosition();
+    // PCモード（WebAudio）の時は、audioPlayer.currentTime は 0 のままなので
+    // エンジンから正しい時間を取得して上書きする必要があります。
+    // ただし、audioPlayer自体はread-onlyなプロパティも多いため、
+    // MediaSessionの更新にはエンジンの時間を使います。
+    
+    let currentTime = 0;
+    let duration = 0;
+
+    if (!isIOS && musicEngine) {
+        currentTime = musicEngine.getCurrentTime();
+        duration = musicEngine.getDuration();
+        
+        if (!isDraggingSeekbar) {
+            const safeDuration = duration || 0;
+            customSeekbar.max = duration || 100;
+            customSeekbar.value = currentTime || 0;
+            currentTimeLabel.textContent = formatTime(currentTime);
+            totalTimeLabel.textContent = formatTime(duration);
+        }
+        // 歌詞表示のために audioPlayerの時間を擬似的にハックするのは難しいので、
+        // updateLyricsDisplay関数の方で musicEngine.getCurrentTime() を参照するように修正するのがベストです。
+        // ここではMediaSessionの更新を行います。
+    } else {
+        currentTime = audioPlayer.currentTime;
+        duration = audioPlayer.duration;
+    }
+    
+    updateMediaPosition(currentTime, duration);
 }
 
 function handleSongEnd(event) {
@@ -485,6 +777,8 @@ function handleRandomButton() {
 async function playSong(songRecord) {
 	if (!songRecord) return;
 
+    currentSongPath = songRecord.path;
+
     const file = songRecord.file;
     const props = songProperties[songRecord.path] || {};
 
@@ -514,14 +808,25 @@ async function playSong(songRecord) {
     }
     // ▲▲▲ 履歴処理ここまで ▲▲▲
 	
-    // --- 以下、既存の再生処理 ---
-    audioPlayer.src = URL.createObjectURL(file);
+    // プロパティからループ情報を取得
+    let loopStart = 0;
+    let loopEnd = 0;
+    if (props.isLoopCompatible && props.isLoopTimeLocked) {
+        loopStart = props.loopStartTime || 0;
+        loopEnd = props.loopEndTime || 0;
+    }
 
-	try {
-		await audioPlayer.play();
-	} catch (error) {
-		console.error('Playback failed:', error);
-	}
+    try {
+        // エンジン経由で再生（iOSなら今まで通り、PCならWebAudioで再生）
+        await musicEngine.play(file, loopStart, loopEnd);
+        
+        // PCモード(WebAudio)の場合、標準プレイヤーのUIが自動で動かないため
+        // 手動でtimeupdateを発火させるタイマーが必要になる場合がありますが、
+        // 簡易実装として、次のステップのhandleTimeUpdateで対応します。
+        
+    } catch (error) {
+        console.error('Playback failed:', error);
+    }
 
 	const songDisplayName = (props.name && props.name.trim() !== '') ? props.name : (file.name.substring(0, file.name.lastIndexOf('.')) || file.name);
 	playerSongName.textContent = songDisplayName;
@@ -710,9 +1015,14 @@ function handleLanguageChange(event) {
 }
 
 function updateLyricsDisplay() {
-    if (!currentLyricsData || currentPlayerView === 'normal' || !audioPlayer) return;
+    if (!currentLyricsData || currentPlayerView === 'normal') return;
 
-    const currentTime = audioPlayer.currentTime;
+    let currentTime;
+    if (musicEngine && !isIOS) {
+        currentTime = musicEngine.getCurrentTime();
+    } else {
+        currentTime = audioPlayer.currentTime;
+    }
     const timings = currentLyricsData.timings;
     let currentIndex = -1;
     for (let i = timings.length - 1; i >= 0; i--) {
@@ -1194,8 +1504,7 @@ function formatTime(totalSeconds) {
     if (totalSeconds == null || isNaN(totalSeconds) || totalSeconds < 0) return "";
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = Math.floor(totalSeconds % 60);
-    const milliseconds = Math.round((totalSeconds - Math.floor(totalSeconds)) * 1000);
-    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(milliseconds).padStart(3, '0')}`;
+    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
 function timeStringToSeconds(timeString) {
@@ -1206,12 +1515,16 @@ function timeStringToSeconds(timeString) {
     return minutes * 60 + seconds + milliseconds / 1000;
 }
 
-function updateMediaPosition() {
-    if ('mediaSession' in navigator && navigator.mediaSession.metadata && audioPlayer) {
+function updateMediaPosition(currentTime, duration) {
+    if ('mediaSession' in navigator && navigator.mediaSession.metadata) {
+        // 引数がなければaudioPlayerから取る（後方互換）
+        const cTime = currentTime !== undefined ? currentTime : (audioPlayer ? audioPlayer.currentTime : 0);
+        const dur = duration !== undefined ? duration : (audioPlayer ? audioPlayer.duration : 0);
+        
         navigator.mediaSession.setPositionState({
-            duration: audioPlayer.duration || 0,
-            playbackRate: audioPlayer.playbackRate,
-            position: audioPlayer.currentTime || 0,
+            duration: dur || 0,
+            playbackRate: audioPlayer.playbackRate || 1,
+            position: cTime || 0,
         });
     }
 }
