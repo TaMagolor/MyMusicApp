@@ -1,7 +1,7 @@
 // =================================================================
 // Application Version
 // =================================================================
-const APP_VERSION = 'v.5.0.6'; // Fixed property panel UI bugs
+const APP_VERSION = 'v.5.0.7'; // Fixed property panel UI bugs
 
 // =================================================================
 // HTML Element Acquisition
@@ -162,11 +162,23 @@ class Html5AudioEngine {
         }
     }
 
-    pause() { this.element.pause(); }
+    pause() { 
+        this.element.pause(); 
+    }
+
+    // ★追加: 再開処理
+    resume() { 
+        if (this.element.paused && this.element.src) {
+            this.element.play();
+        }
+    }
     
     // UI同期のために現在の時間を返す
     getCurrentTime() { return this.element.currentTime; }
     getDuration() { return this.element.duration; }
+    
+    // ★追加: 停止状態の判定
+    getPaused() { return this.element.paused; }
 }
 
 // ■ PC/Android用エンジン（Web Audio APIで完璧なループ）
@@ -770,6 +782,7 @@ function handleRandomButton() {
         if (songRecord) {
             nextSongToPlay = songRecord;
             if (audioPlayer.paused) playNextSong();
+            if (musicEngine && musicEngine.getPaused()) playNextSong();
         }
     }
 }
