@@ -1,7 +1,7 @@
 // =================================================================
 // Application Version
 // =================================================================
-const APP_VERSION = 'v.5.0.9'; // Fixed property panel UI bugs
+const APP_VERSION = 'v.5.0.10'; // Fixed property panel UI bugs
 
 // =================================================================
 // HTML Element Acquisition
@@ -346,6 +346,8 @@ window.addEventListener('load', async () => {
     }
     audioPlayer.classList.add('hidden'); // class="hidden" を強制
     customSeekbarContainer.classList.remove('hidden');
+    updatePlayButtonIcon(false);
+    updateSeekbarVisuals();
 	if (versionDisplay) {
 		versionDisplay.textContent = APP_VERSION;
 	}
@@ -409,8 +411,10 @@ ctrlPlayPauseButton.addEventListener('click', () => {
     // それ以外は、現在セットされている曲を 再生/一時停止 するだけ
     if (musicEngine.getPaused()) {
         musicEngine.resume();
+        updatePlayButtonIcon(true);
     } else {
         musicEngine.pause();
+        updatePlayButtonIcon(false);
     }
 });
 ctrlPrevButton.addEventListener('click', () => {
@@ -853,6 +857,8 @@ async function playSong(songRecord) {
         console.error('Playback failed:', error);
     }
 
+    updatePlayButtonIcon(true);
+
 	const songDisplayName = (props.name && props.name.trim() !== '') ? props.name : (file.name.substring(0, file.name.lastIndexOf('.')) || file.name);
 	playerSongName.textContent = songDisplayName;
 	let gameName = 'N/A';
@@ -1159,6 +1165,26 @@ function switchSettingsView(viewName) {
         detailSettingsView.classList.remove('active');
         mainSettingsView.classList.add('active');
     }
+}
+
+function updateSeekbarVisuals() {
+    if (!customSeekbar) return;
+    const val = parseFloat(customSeekbar.value) || 0;
+    const max = parseFloat(customSeekbar.max) || 100;
+    const ratio = (max > 0) ? (val / max) * 100 : 0;
+    
+    // linear-gradientで「左からratio%まで紫、そこから右はグレー」にする
+    // 線の太さは background-size の第2引数(4px)で指定
+    customSeekbar.style.background = `linear-gradient(to right, #7e57c2 ${ratio}%, #555 ${ratio}%)`;
+    customSeekbar.style.backgroundSize = `100% 6px`;
+    customSeekbar.style.backgroundRepeat = `no-repeat`;
+    customSeekbar.style.backgroundPosition = `center`;
+}
+
+function updatePlayButtonIcon(isPlaying) {
+    // isPlayingが true (再生中) なら一時停止ボタン(❚❚)を表示
+    // false (停止中) なら再生ボタン(▶)を表示
+    ctrlPlayPauseButton.textContent = isPlaying ? '❚❚' : '▶';
 }
 
 function renderTreeView(pathsToKeepOpen = null) {
@@ -1573,18 +1599,4 @@ function applyLanguageStyle(langName) {
 function autoResizeTextarea(element) {
     element.style.height = 'auto'; // 一旦高さをリセット
     element.style.height = element.scrollHeight + 'px'; // 内容に合わせて高さを設定
-}
-
-function updateSeekbarVisuals() {
-    if (!customSeekbar) return;
-    const val = parseFloat(customSeekbar.value) || 0;
-    const max = parseFloat(customSeekbar.max) || 100;
-    const ratio = (max > 0) ? (val / max) * 100 : 0;
-    
-    // linear-gradientで「左からratio%まで紫、そこから右はグレー」にする
-    // 線の太さは background-size の第2引数(4px)で指定
-    customSeekbar.style.background = `linear-gradient(to right, #7e57c2 ${ratio}%, #555 ${ratio}%)`;
-    customSeekbar.style.backgroundSize = `100% 6px`;
-    customSeekbar.style.backgroundRepeat = `no-repeat`;
-    customSeekbar.style.backgroundPosition = `center`;
 }
