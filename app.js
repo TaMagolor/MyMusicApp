@@ -1,7 +1,7 @@
 // =================================================================
 // Application Version
 // =================================================================
-const APP_VERSION = 'v.5.1.5'; // Fixed property panel UI bugs
+const APP_VERSION = 'v.5.1.9'; // Fixed property panel UI bugs
 
 // =================================================================
 // HTML Element Acquisition
@@ -56,9 +56,8 @@ const playerMainUI = document.getElementById('player-main-ui');
 const propIsDerivative = document.getElementById('prop-is-derivative');
 const derivativeSettingsPanel = document.getElementById('derivative-settings-panel');
 const propDerivativeMultiplier = document.getElementById('prop-derivative-multiplier');
-const lyricsContainer = document.getElementById('lyrics-container');
-const partialLyricsDisplay = document.getElementById('partial-lyrics-display');
-const fullLyricsDisplay = document.getElementById('full-lyrics-display');
+const lyricsDisplayContainer = document.getElementById('lyrics-display-container');
+const lyricsControlsContainer = document.getElementById('lyrics-controls-container');
 const lyricsLanguageSelector = document.getElementById('lyrics-language-selector');
 const lyricsViewToggle = document.getElementById('lyrics-view-toggle');
 const lyricsControls = document.getElementById('lyrics-controls');
@@ -80,6 +79,8 @@ const ctrlNextButton = document.getElementById('ctrl-next-button');
 const enduranceMenuContainer = document.getElementById('endurance-menu-container');
 const enduranceSelect = document.getElementById('endurance-select');
 const loadingOverlay = document.createElement('div');
+const partialLyricsDisplay = document.getElementById('partial-lyrics-display');
+const fullLyricsDisplay = document.getElementById('full-lyrics-display');
 loadingOverlay.id = 'loading-overlay';
 loadingOverlay.innerHTML = '<div>データを処理中...</div>';
 loadingOverlay.style.display = 'none';
@@ -246,8 +247,10 @@ class WebAudioEngine {
         this.source = sourceNode;
 
         const isLoopingConfigured = (this.currentLoopEnd > 0 && this.currentLoopEnd > this.currentLoopStart);
+        const isOutro = (this.currentLoopEnd > 0 && offset >= this.currentLoopEnd);
+        const isTargetReached = (currentSongTargetLoopCount > 0 && currentLoopCount >= currentSongTargetLoopCount);
         
-        if (isLoopingConfigured) {
+        if (isLoopingConfigured && !isOutro && !isTargetReached) {
             this.source.loop = true;
             this.source.loopStart = this.currentLoopStart;
             this.source.loopEnd = this.currentLoopEnd;
@@ -314,7 +317,7 @@ class WebAudioEngine {
         // 設定変更時に既に目標を超えていたら、ループを切る
         // （判定ライン通過前でも、ここで切っておけば通過時に何もせず抜ける）
         if (this.source && this.source.loop && currentLoopCount >= currentSongTargetLoopCount) {
-             this.source.loop = false;
+            this.source.loop = false;
         }
     }
 
@@ -1061,13 +1064,15 @@ async function playSong(songRecord) {
         currentLyricsLang = 0;
         const initialLangName = currentLyricsData.languages[0].name;
         applyLanguageStyle(initialLangName);
-        lyricsContainer.classList.remove('hidden');
+        lyricsDisplayContainer.classList.remove('hidden');
+        lyricsControlsContainer.classList.remove('hidden');
         setupLyricsControls(currentLyricsData.languages);
         switchLyricsView('normal');
         lyricsUpdateInterval = setInterval(updateLyricsDisplay, 250);
     } else {
         currentLyricsData = null;
-        lyricsContainer.classList.add('hidden');
+        lyricsDisplayContainer.classList.add('hidden');
+        lyricsControlsContainer.classList.add('hidden');
         switchLyricsView('normal');
     }
 }
@@ -1762,28 +1767,6 @@ function applyLanguageStyle(langName) {
 function autoResizeTextarea(element) {
     element.style.height = 'auto'; // 一旦高さをリセット
     element.style.height = element.scrollHeight + 'px'; // 内容に合わせて高さを設定
-}
-
-function calculateLoopCount(minutes, loopStart, loopEnd, totalDuration) {
-    if (minutes <= 0) return 0; // 設定なし
-
-    const intro = loopStart;
-    const loopPart = loopEnd - loopStart;
-    const outro = totalDuration - loopEnd;
-
-    // ループ設定がおかしい場合は耐久モード無効
-    if (loopPart <= 0) return 0;
-
-    const targetTimeSeconds = minutes * 60;
-    
-    // (x - イントロ - アウトロ)
-    const requiredLoopTime = targetTimeSeconds - intro - outro;
-    
-    // 計算結果がマイナス（曲自体が指定時間より長い）なら、ループなし(0)で普通に流す
-    if (requiredLoopTime <= 0) return 0;
-
-    // ループ回数 = 切り上げ(不足時間 / ループ部分)
-    return Math.ceil(requiredLoopTime / loopPart);
 }
 
 function formatTimeWithMillis(totalSeconds) {

@@ -39,13 +39,25 @@ input[type="file"] { display: none; }
 .scrollable-content { overflow-y: auto; -webkit-overflow-scrolling: touch; overflow-x: hidden; }
 
 /* --- 1. プレイヤー画面 --- */
-#player-screen { justify-content: space-between; }
+#player-screen { position: relative; }
 #player-main-ui {
     width: 100%;
-    flex-shrink: 0;
+    height: 100%; /* 全体を使う */
     transition: all 0.3s ease;
+    overflow: hidden; /* 内部スクロールに対応 */
 }
-.player-content { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10px; gap: 10px; height: 100%; box-sizing: border-box; }
+
+.player-content { 
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    justify-content: center; 
+    padding: 10px; 
+    gap: 10px; 
+    height: 100%; 
+    box-sizing: border-box; 
+    width: 100%;
+}
 #player-main-ui .artwork-container { width: 65vw; max-width: 280px; aspect-ratio: 1 / 1; transition: width 0.3s ease; }
 #player-artwork { width: 100%; height: 100%; border-radius: 12px; object-fit: cover; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
 #audioPlayer, #crossfadePlayer { width: 90%; max-width: 400px; margin-top: 10px; }
@@ -56,26 +68,31 @@ input[type="file"] { display: none; }
 #player-folder-name-container .folder-label { display: block; text-align: left; font-size: 0.9em; }
 #player-folder-name { display: block; text-align: center; font-size: 1.1em; font-weight: bold; margin-top: 2px; }
 
+#lyrics-display-container {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    /* view-modeによって高さや表示が変わる */
+}
+
+#lyrics-controls-container {
+    width: 100%;
+}
+
 /* 耐久ボタンと歌詞エリアを縦に並べて管理するコンテナ */
 #bottom-controls-container {
-    /* 画面下端に固定するための絶対配置 */
     position: absolute;
-    /* ナビゲーションバー(60px) + 余白(15px) + スマホのセーフエリア の位置に固定 */
-    bottom: calc(var(--nav-height) + var(--safe-area-bottom) - 50px);
+    bottom: calc(var(--nav-height) + var(--safe-area-bottom) - 50px); /* 位置調整 */
     left: 50%;
-    transform: translateX(-50%); /* 左右中央揃え */
-    
+    transform: translateX(-50%);
     width: 90%;
     max-width: 400px;
-    
     display: flex;
-    flex-direction: column; /* 縦並び */
-    justify-content: flex-end; /* 下詰め（歌詞ボタンが底辺、その上に耐久ボタン） */
+    flex-direction: column;
+    justify-content: flex-end;
     align-items: center;
     gap: 10px;
-    z-index: 20; /* 他の要素より手前に表示 */
-    
-    /* コンテナ自体のクリック判定をなくし、裏側のアートワーク等を触れるようにする */
+    z-index: 20;
     pointer-events: none;
 }
 
@@ -110,16 +127,6 @@ input[type="file"] { display: none; }
 }
 
 /* ▼▼▼ 歌詞コンテナ ▼▼▼ */
-#lyrics-container {
-    width: 100%;
-    order: 1;
-    margin-top: 0;
-    position: relative;
-    min-height: var(--lyrics-controls-height);
-    /* 以下を追加して統合 */
-    flex-direction: column;
-    overflow: hidden;
-}
 
 /* 表示条件: 通常表示以外のときは耐久ボタンを隠す */
 .view-partial #endurance-menu-container,
@@ -129,6 +136,9 @@ input[type="file"] { display: none; }
 
 /* ▼▼▼ プレイヤー画面の表示モードごとのレイアウト ▼▼▼ */
 /* 1-a. 通常表示 */
+.view-normal #lyrics-display-container {
+    display: none;
+}
 .view-normal #player-main-ui { flex-grow: 1; }
 .view-normal .lyrics-view { display: none; }
 
@@ -137,26 +147,37 @@ input[type="file"] { display: none; }
 .view-partial #player-main-ui { flex-grow: 0; flex-shrink: 0; }
 .view-partial .player-content { height: auto; padding: 20px 20px 0 20px; gap: 8px; }
 .view-partial #player-main-ui .artwork-container { width: 20vw; max-width: 75px; }
-.view-partial #lyrics-container { 
+.view-partial #lyrics-display-container {
     display: flex;
-    height: calc(var(--partial-lyrics-panel-height) + var(--lyrics-controls-height));
-    flex-shrink: 0;
-    padding: 10px 0;
-    width: 100%;
-    box-sizing: border-box; 
+    height: var(--partial-lyrics-panel-height);
+    margin-top: 10px;
 }
 .view-partial #partial-lyrics-display { display: flex; }
 .view-partial #full-lyrics-display { display: none; }
+.view-partial #endurance-menu-container { display: none !important; }
 
 /* 1-c. 歌詞の全文表示 */
-.view-full #player-main-ui { display: none; }
-.view-full #lyrics-container { 
+.view-full .player-content > *:not(#lyrics-display-container) {
+    display: none !important;
+}
+
+.view-full .player-content {
+    justify-content: flex-start; /* 上詰めにする */
+    padding-top: 20px;
+}
+
+.view-full #lyrics-display-container {
     display: flex; 
     height: 100%; 
-    padding: 10px 0 107px 0;
     width: 100%; 
-    box-sizing: border-box; 
+    /* 下部コントロール(約90px)分の余白を空ける */
+    padding-bottom: 110px; 
+    box-sizing: border-box;
 }
+
+.view-full #full-lyrics-display { display: block; }
+.view-full #partial-lyrics-display { display: none; }
+.view-full #endurance-menu-container { display: none !important; }
 .view-full #full-lyrics-display { display: block; }
 .view-full #partial-lyrics-display { display: none; }
 
@@ -165,17 +186,18 @@ input[type="file"] { display: none; }
 .lyrics-panel {
     background-color: rgba(30, 30, 30, 0.7);
     border: 1px solid #444;
-    border-radius: 12px;
+    /* border-radius: 12px; */
     padding: 15px;
     box-sizing: border-box;
     height: 100%;
 }
+/*
 .view-partial .lyrics-panel,
 .view-full .lyrics-panel {
-    border-left: none;
-    border-right: none;
-    border-radius: 0;
+    border: none;
+    background: transparent;
 }
+*/
 #partial-lyrics-display {
     flex-direction: column;
     justify-content: center;
@@ -197,7 +219,18 @@ input[type="file"] { display: none; }
 #full-lyrics-display p.current-lyric { opacity: 1; }
 
 /* 歌詞コントロール */
-#lyrics-controls { position: absolute; bottom: 0; left: 0; width: 100%; z-index: 20; height: var(--lyrics-controls-height); flex-shrink: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5px; gap: 10px; }
+#lyrics-controls {
+    width: 100%;
+    z-index: 20;
+    height: var(--lyrics-controls-height);
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 5px;
+    gap: 10px;
+}
 .language-selector { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 .language-selector button { font-size: 0.8em; padding: 5px 12px; border-radius: 15px; background-color: #333; }
 .language-selector button.active { background-color: #7e57c2; color: white; }
