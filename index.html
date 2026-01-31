@@ -37,18 +37,30 @@
                         <button id="ctrl-play-pause-button" class="control-btn play-btn">▶</button>
                         <button id="ctrl-next-button" class="control-btn">Next >></button>
                     </div>
-                </div>
-            </div>
+                    <div id="bottom-controls-container">
+                        <div id="endurance-menu-container" class="hidden">
+                            <select id="endurance-select">
+                                <option value="0">ループなし</option>
+                                <option value="5">5分</option>
+                                <option value="10">10分</option>
+                                <option value="15">15分</option>
+                                <option value="30">30分</option>
+                                <option value="60">60分</option>
+                            </select>
+                        </div>
 
-            <div id="lyrics-container" class="hidden">
-                <div id="partial-lyrics-display" class="lyrics-view lyrics-panel"></div>
-                <div id="full-lyrics-display" class="lyrics-view scrollable-content lyrics-panel"></div>
-                <div id="lyrics-controls">
-                    <div id="lyrics-language-selector" class="language-selector"></div>
-                    <div id="lyrics-view-toggle" class="view-toggle">
-                        <button data-view="normal" class="active">通常表示</button>
-                        <button data-view="partial">歌詞の一部表示</button>
-                        <button data-view="full">歌詞の全文表示</button>
+                        <div id="lyrics-container" class="hidden">
+                            <div id="partial-lyrics-display" class="lyrics-view lyrics-panel"></div>
+                            <div id="full-lyrics-display" class="lyrics-view scrollable-content lyrics-panel"></div>
+                            <div id="lyrics-controls">
+                                <div id="lyrics-language-selector" class="language-selector"></div>
+                                <div id="lyrics-view-toggle" class="view-toggle">
+                                    <button data-view="normal" class="active">通常表示</button>
+                                    <button data-view="partial">歌詞の一部表示</button>
+                                    <button data-view="full">歌詞の全文表示</button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

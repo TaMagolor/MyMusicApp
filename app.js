@@ -1,7 +1,7 @@
 // =================================================================
 // Application Version
 // =================================================================
-const APP_VERSION = 'v.5.0.12'; // Fixed property panel UI bugs
+const APP_VERSION = 'v.5.1.2'; // Fixed property panel UI bugs
 
 // =================================================================
 // HTML Element Acquisition
@@ -77,6 +77,8 @@ const propMemo = document.getElementById('prop-memo');
 const ctrlPrevButton = document.getElementById('ctrl-prev-button');
 const ctrlPlayPauseButton = document.getElementById('ctrl-play-pause-button');
 const ctrlNextButton = document.getElementById('ctrl-next-button');
+const enduranceMenuContainer = document.getElementById('endurance-menu-container');
+const enduranceSelect = document.getElementById('endurance-select');
 const loadingOverlay = document.createElement('div');
 loadingOverlay.id = 'loading-overlay';
 loadingOverlay.innerHTML = '<div>データを処理中...</div>';
@@ -192,60 +194,65 @@ class WebAudioEngine {
         
         this.startedAt = 0;
         this.pausedAt = 0;
-        this.isPlaying = false; // 再生中フラグ
+        this.isPlaying = false; 
         this.buffer = null;
         
-        // シークや再開時に使うためにループ設定を保存しておく変数
         this.currentLoopStart = 0;
         this.currentLoopEnd = 0;
+        
+        // ★変更: 時間リミットではなく「ループ回数」を保持する
+        this.currentLoopCount = 0; 
+        
+        // ループ解除用のタイマーID
+        this.loopDisableTimeout = null;
     }
 
-    async play(file, loopStart, loopEnd) {
+    // play メソッド: durationLimit の代わりに loopCount を受け取る
+    async play(file, loopStart, loopEnd, loopCount = 0) {
         if (this.ctx.state === 'suspended') await this.ctx.resume();
         
-        // 再生前に前の曲を止める
         this.isPlaying = false;
         this.stopSource();
 
-        // ファイルを読み込んでデコード
         const arrayBuffer = await file.arrayBuffer();
         this.buffer = await this.ctx.decodeAudioData(arrayBuffer);
 
-        // ループ設定を保存
         this.currentLoopStart = loopStart;
         this.currentLoopEnd = loopEnd;
+        this.currentLoopCount = loopCount;
 
-        // 最初から再生
-        this.playBuffer(0);
+        this.playBuffer(0, loopCount);
     }
 
-    playBuffer(offset) {
+    playBuffer(offset, loopCount = 0) {
         if (!this.buffer) return;
         
-        // 重複再生防止（古いソースを止める）
         this.stopSource();
 
-        // 新しいソースを作成
         const sourceNode = this.ctx.createBufferSource();
         sourceNode.buffer = this.buffer;
         sourceNode.connect(this.gainNode);
         
-        // クラスのプロパティとして保持
         this.source = sourceNode;
 
-        // 保存しておいた設定を使ってループを設定
-        if (this.currentLoopEnd > 0 && this.currentLoopEnd > this.currentLoopStart) {
+        // 基本のループ設定
+        const isLooping = (this.currentLoopEnd > 0 && this.currentLoopEnd > this.currentLoopStart);
+        
+        if (isLooping) {
             this.source.loop = true;
             this.source.loopStart = this.currentLoopStart;
             this.source.loopEnd = this.currentLoopEnd;
+
+            // ★耐久モードロジック: 有限回ループの設定
+            // loopCount > 0 の場合、指定回数ループしたあとにループを解除する予約を入れる
+            if (loopCount > 0) {
+                this.scheduleLoopDisable(offset, loopCount);
+            }
         } else {
             this.source.loop = false;
         }
 
-        // ★修正ポイント: 変数 sourceNode をクロージャでキャプチャして比較する
-        sourceNode.onended = () => {
-            // イベントを発火したソース(sourceNode)が、現在管理しているソース(this.source)と一致する場合のみ実行
-            // これにより、シーク時などに捨てられた「古いソース」のonendedを無視できる
+        this.source.onended = () => {
             if (this.isPlaying && this.source === sourceNode && !this.source.loop) {
                 this.isPlaying = false;
                 const event = new Event('ended');
@@ -259,19 +266,46 @@ class WebAudioEngine {
         this.isPlaying = true;
     }
 
+    // ★追加: ループ解除のスケジュール関数
+    scheduleLoopDisable(offset, loopCount) {
+        if (this.loopDisableTimeout) clearTimeout(this.loopDisableTimeout);
+
+        // 1回あたりのループ長さ
+        const loopDuration = this.currentLoopEnd - this.currentLoopStart;
+        
+        // イントロの長さ
+        const introDuration = this.currentLoopStart;
+
+        // 「N回目のループ」が終わる直前（例: N-0.1回目）の時間を計算
+        // ここを過ぎてから loop = false にすれば、現在再生中のループが終わった瞬間にアウトロへ突入する
+        const loopDisablePoint = introDuration + (loopDuration * (loopCount - 0.1));
+
+        // 現在位置(offset)からの待ち時間を計算
+        const timeUntilDisable = loopDisablePoint - offset;
+
+        if (timeUntilDisable > 0) {
+            this.loopDisableTimeout = setTimeout(() => {
+                if (this.source) {
+                    console.log("Endurance Mode: Disabling loop to enter Outro.");
+                    this.source.loop = false;
+                }
+            }, timeUntilDisable * 1000);
+        } else {
+            // 既に回数を超えている場合は即座にループを切る（アウトロへ）
+            this.source.loop = false;
+        }
+    }
+
     seek(time) {
         if (!this.buffer) return;
         time = Math.max(0, Math.min(time, this.buffer.duration));
         
         if (this.isPlaying) {
-            // シーク時は isPlaying を false にしなくて良い（playBuffer内で正しく処理されるため）
-            // ただし古いソースを確実に止める
-            try { this.source.stop(); } catch(e) {}
-            
-            // 指定位置から再生し直す
-            this.playBuffer(time);
+            this.isPlaying = false;
+            this.stopSource();
+            // 保存してある loopCount を使って再開
+            this.playBuffer(time, this.currentLoopCount);
         } else {
-            // 停止中なら位置だけ記録（再開時にここから始まる）
             this.pausedAt = time;
         }
     }
@@ -281,25 +315,24 @@ class WebAudioEngine {
             this.pausedAt = this.getCurrentTime();
             this.isPlaying = false;
             this.stopSource();
-            
             if (this.ctx.state === 'running') this.ctx.suspend();
         }
     }
 
     async resume() {
         if (this.ctx.state === 'suspended') await this.ctx.resume();
-        
-        // 停止中かつバッファがある場合、音の部品を作り直して再生
         if (!this.isPlaying && this.buffer) {
-            this.playBuffer(this.pausedAt);
+            this.playBuffer(this.pausedAt, this.currentLoopCount);
         }
     }
 
     stopSource() {
+        if (this.loopDisableTimeout) {
+            clearTimeout(this.loopDisableTimeout);
+            this.loopDisableTimeout = null;
+        }
         if (this.source) {
             try { this.source.stop(); } catch(e) {}
-            // 切断するが、this.source = null はしない（onendedの比較で null になると困る場合があるため）
-            // ただし playBuffer で this.source は上書きされるので問題ない
             this.source.disconnect();
         }
     }
@@ -307,7 +340,7 @@ class WebAudioEngine {
     stop() {
         this.isPlaying = false;
         this.stopSource();
-        this.source = null; // 完全停止時は消して良い
+        this.source = null;
         this.pausedAt = 0;
     }
 
@@ -316,7 +349,6 @@ class WebAudioEngine {
         
         let time = this.ctx.currentTime - this.startedAt;
         
-        // ループ再生中の時間計算
         if(this.source && this.source.loop) {
             const duration = this.source.loopEnd - this.source.loopStart;
             if(time >= this.source.loopStart) {
@@ -438,6 +470,40 @@ customSeekbar.addEventListener('change', () => {
 if (ctrlNextButton) {
     ctrlNextButton.addEventListener('click', playNextSong);
 }
+enduranceSelect.addEventListener('change', () => {
+    if (!musicEngine || !currentSongPath) return;
+
+    const minutes = parseInt(enduranceSelect.value, 10);
+    const props = songProperties[currentSongPath] || {};
+    
+    if (!props.isLoopCompatible || !props.isLoopTimeLocked) return;
+
+    const loopStart = props.loopStartTime || 0;
+    const loopEnd = props.loopEndTime || 0;
+    const duration = musicEngine.getDuration(); // 曲の全長を取得
+
+    // 計算関数を呼び出し
+    const loopCount = calculateLoopCount(minutes, loopStart, loopEnd, duration);
+
+    if (minutes > 0) {
+        console.log(`耐久モード: ${minutes}分 -> ループ${loopCount}回設定`);
+    } else {
+        console.log(`耐久モード: 解除`);
+    }
+
+    // エンジンに設定を反映（現在位置をキープしたまま再生成）
+    const currentTime = musicEngine.getCurrentTime();
+    
+    if(musicEngine instanceof WebAudioEngine) {
+        // currentLoopCountを更新
+        musicEngine.currentLoopCount = loopCount;
+        
+        // 再生中ならシーク動作で設定を即時反映
+        if (!musicEngine.getPaused()) {
+            musicEngine.seek(currentTime); 
+        }
+    }
+});
 
 // =================================================================
 // Event Handler Functions
@@ -845,9 +911,18 @@ async function playSong(songRecord) {
         loopEnd = props.loopEndTime || 0;
     }
 
+    const canEndure = !isIOS && props.isLoopCompatible && props.isLoopTimeLocked;
+    
+    if (canEndure) {
+        enduranceMenuContainer.classList.remove('hidden');
+        enduranceSelect.value = "0"; // リセット
+    } else {
+        enduranceMenuContainer.classList.add('hidden');
+    }
+
     try {
         // エンジン経由で再生（iOSなら今まで通り、PCならWebAudioで再生）
-        await musicEngine.play(file, loopStart, loopEnd);
+        await musicEngine.play(file, loopStart, loopEnd, 0);
         
         // PCモード(WebAudio)の場合、標準プレイヤーのUIが自動で動かないため
         // 手動でtimeupdateを発火させるタイマーが必要になる場合がありますが、
@@ -1298,8 +1373,8 @@ async function showPropertiesPanel(resetData = true) {
         loopSettingsPanel.classList.toggle('hidden', !isLoop);
         if (isLoop) {
             propLoopTimeLocked.checked = props.isLoopTimeLocked || false;
-            propLoopStart.value = formatTime(props.loopStartTime);
-            propLoopEnd.value = formatTime(props.loopEndTime);
+            propLoopStart.value = formatTimeWithMillis(props.loopStartTime);
+            propLoopEnd.value = formatTimeWithMillis(props.loopEndTime);
         }
 
         const showLyrics = props.showLyrics || false;
@@ -1599,4 +1674,34 @@ function applyLanguageStyle(langName) {
 function autoResizeTextarea(element) {
     element.style.height = 'auto'; // 一旦高さをリセット
     element.style.height = element.scrollHeight + 'px'; // 内容に合わせて高さを設定
+}
+
+function calculateLoopCount(minutes, loopStart, loopEnd, totalDuration) {
+    if (minutes <= 0) return 0; // 設定なし
+
+    const intro = loopStart;
+    const loopPart = loopEnd - loopStart;
+    const outro = totalDuration - loopEnd;
+
+    // ループ設定がおかしい場合は耐久モード無効
+    if (loopPart <= 0) return 0;
+
+    const targetTimeSeconds = minutes * 60;
+    
+    // (x - イントロ - アウトロ)
+    const requiredLoopTime = targetTimeSeconds - intro - outro;
+    
+    // 計算結果がマイナス（曲自体が指定時間より長い）なら、ループなし(0)で普通に流す
+    if (requiredLoopTime <= 0) return 0;
+
+    // ループ回数 = 切り上げ(不足時間 / ループ部分)
+    return Math.ceil(requiredLoopTime / loopPart);
+}
+
+function formatTimeWithMillis(totalSeconds) {
+    if (totalSeconds == null || isNaN(totalSeconds) || totalSeconds < 0) return "";
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = Math.floor(totalSeconds % 60);
+    const milliseconds = Math.round((totalSeconds % 1) * 1000);
+    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(milliseconds).padStart(3, '0')}`;
 }

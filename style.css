@@ -56,6 +56,77 @@ input[type="file"] { display: none; }
 #player-folder-name-container .folder-label { display: block; text-align: left; font-size: 0.9em; }
 #player-folder-name { display: block; text-align: center; font-size: 1.1em; font-weight: bold; margin-top: 2px; }
 
+/* 耐久ボタンと歌詞エリアを縦に並べて管理するコンテナ */
+#bottom-controls-container {
+    /* 画面下端に固定するための絶対配置 */
+    position: absolute;
+    /* ナビゲーションバー(60px) + 余白(15px) + スマホのセーフエリア の位置に固定 */
+    bottom: calc(var(--nav-height) + var(--safe-area-bottom) - 50px);
+    left: 50%;
+    transform: translateX(-50%); /* 左右中央揃え */
+    
+    width: 90%;
+    max-width: 400px;
+    
+    display: flex;
+    flex-direction: column; /* 縦並び */
+    justify-content: flex-end; /* 下詰め（歌詞ボタンが底辺、その上に耐久ボタン） */
+    align-items: center;
+    gap: 10px;
+    z-index: 20; /* 他の要素より手前に表示 */
+    
+    /* コンテナ自体のクリック判定をなくし、裏側のアートワーク等を触れるようにする */
+    pointer-events: none;
+}
+
+#bottom-controls-container > * {
+    pointer-events: auto;
+    width: 100%;
+}
+
+/* ▼▼▼ 耐久モードボタン ▼▼▼ */
+#endurance-menu-container {
+    display: flex;
+    justify-content: center;
+    /* orderはHTML順序（Endurance -> Lyrics）と flex-direction: column で自然に上になるので指定不要ですが念のため */
+    order: 0;
+}
+
+#endurance-select {
+    background-color: #333;
+    color: #fff;
+    border: 1px solid #555;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.9em;
+    outline: none;
+    cursor: pointer;
+    text-align: center;
+    appearance: none; 
+    -webkit-appearance: none;
+}
+#endurance-select:hover {
+    background-color: #444;
+}
+
+/* ▼▼▼ 歌詞コンテナ ▼▼▼ */
+#lyrics-container {
+    width: 100%;
+    order: 1;
+    margin-top: 0;
+    position: relative;
+    min-height: var(--lyrics-controls-height);
+    /* 以下を追加して統合 */
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* 表示条件: 通常表示以外のときは耐久ボタンを隠す */
+.view-partial #endurance-menu-container,
+.view-full #endurance-menu-container {
+    display: none !important;
+}
+
 /* ▼▼▼ プレイヤー画面の表示モードごとのレイアウト ▼▼▼ */
 /* 1-a. 通常表示 */
 .view-normal #player-main-ui { flex-grow: 1; }
@@ -90,7 +161,6 @@ input[type="file"] { display: none; }
 .view-full #partial-lyrics-display { display: none; }
 
 /* --- 歌詞表示UIのスタイル --- */
-#lyrics-container { flex-direction: column; overflow: hidden; }
 .lyrics-view { flex-grow: 1; overflow: auto; }
 .lyrics-panel {
     background-color: rgba(30, 30, 30, 0.7);
@@ -299,14 +369,17 @@ audio.hidden {
 }
 
 #custom-seekbar {
-    -webkit-appearance: none; /* OS標準の見た目を無効化 */
+    -webkit-appearance: none;
     appearance: none;
     width: 100%;
-    height: 35px; /* ★当たり判定の高さ（見た目より太く設定） */
-    background: transparent; /* 背景はJSで制御するため透明に */
+    height: 35px;
+    background: transparent;
+    margin: 0;
+    
+    /* 以下、下のブロックから統合 */
+    flex-grow: 1;
     cursor: pointer;
-    margin: 0; /* 余白リセット */
-    accent-color: auto; /* accent-colorは無効化 */
+    accent-color: #7e57c2; 
 }
 
 #custom-seekbar::-webkit-slider-thumb {
@@ -337,12 +410,6 @@ audio.hidden {
     font-size: 0.8em;
     color: #ccc;
     width: 100%;
-}
-
-#custom-seekbar {
-    flex-grow: 1;
-    cursor: pointer;
-    accent-color: #7e57c2; /* プレイヤーのアクセントカラーに合わせる */
 }
 
 #custom-seekbar-container {
