@@ -262,7 +262,11 @@ audio.hidden {
 .control-btn {
     width: 30%;
     padding: 6px 0;
-    font-size: 0.8em;
+    display: flex;
+    font-size: 1em;
+    justify-content: center;
+    align-items: center;
+    box-sizing: border-box;
     border-radius: 20px;
     background-color: #3a3a3c;
     color: #fff;
@@ -281,7 +285,7 @@ audio.hidden {
 
 .play-btn {
     width: 12%;
-    font-size: 1.2em; /* アイコンを大きく */
+    font-size: 0.8em;
     font-weight: bold;
 }
 
