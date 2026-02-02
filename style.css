@@ -1,32 +1,49 @@
+/* フォント */
 @font-face {
     font-family: 'NewWorld';
-    /* 実際のファイルパスと拡張子に合わせてください */
     src: url('fonts/NewWorld.ttf') format('truetype'); 
 }
 
-/* 基本設定 */
+.lyrics-panel.lang-newworld p {
+    font-family: 'NewWorld', sans-serif !important;
+    letter-spacing: 0.1em;
+}
+
 :root {
     --nav-height: 60px;
     --list-button-height: 70px;
     --safe-area-bottom: env(safe-area-inset-bottom);
     --lyrics-controls-height: 90px;
     --partial-lyrics-panel-height: calc(1.6em * 9 + 50px); 
-    --lyrics-text-scale: 0.8; /* この変数は現在使用されていませんが、参考のため残します */
+    --lyrics-text-scale: 0.8;
 }
 body, html {
-    margin: 0; padding: 0; width: 100%; height: 100%;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-    background-color: #000; color: #fff;
-    overflow: hidden; -webkit-user-select: none; user-select: none;
+    background-color: #000;
+    color: #fff;
+    overflow: hidden;
+    -webkit-user-select: none;
+    user-select: none;
 }
 button, label.settings-button {
-    padding: 12px 24px; font-size: 1em; border-radius: 25px; border: 1px solid #555;
-    background-color: #2c2c2e; color: #fff; cursor: pointer; font-weight: 600;
+    padding: 12px 24px;
+    font-size: 1em;
+    border-radius: 25px;
+    border: 1px solid #555;
+    background-color: #2c2c2e;
+    color: #fff;
+    cursor: pointer;
+    font-weight: 600;
 }
-input[type="file"] { display: none; }
+input[type="file"] {
+    display: none;
+}
 .hidden { display: none !important; }
 
-/* アプリ全体のコンテナ */
 #app-container {
     width: 100%; height: calc(100% - var(--nav-height) - var(--safe-area-bottom));
     overflow: hidden; position: relative;
@@ -38,15 +55,30 @@ input[type="file"] { display: none; }
 .screen.active { display: flex; }
 .scrollable-content { overflow-y: auto; -webkit-overflow-scrolling: touch; overflow-x: hidden; }
 
-/* --- 1. プレイヤー画面 --- */
-#player-screen { position: relative; }
-#player-main-ui {
-    width: 100%;
-    height: 100%; /* 全体を使う */
-    transition: all 0.3s ease;
-    overflow: hidden; /* 内部スクロールに対応 */
+/* ローディングオーバーレイ */
+#loading-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background-color: rgba(0, 0, 0, 0.7); display: flex;
+    justify-content: center; align-items: center; z-index: 1000;
+    color: white; font-size: 1.2em;
 }
 
+audio.hidden {
+    display: none !important;
+}
+
+
+
+
+/* プレイヤー画面 */
+#player-screen { position: relative; }
+/* プレイヤー画面 > 画面中央部 */
+#player-main-ui {
+    width: 100%;
+    height: 100%;
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
 .player-content { 
     display: flex; 
     flex-direction: column; 
@@ -58,28 +90,138 @@ input[type="file"] { display: none; }
     box-sizing: border-box; 
     width: 100%;
 }
-#player-main-ui .artwork-container { width: 65vw; max-width: 280px; aspect-ratio: 1 / 1; transition: width 0.3s ease; }
-#player-artwork { width: 100%; height: 100%; border-radius: 12px; object-fit: cover; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
-#audioPlayer, #crossfadePlayer { width: 90%; max-width: 400px; margin-top: 10px; }
 .player-info-text { text-align: center; width: 90%; }
-.song-title { font-size: 1.2em; font-weight: 600; }
-.game-title { font-size: 1em; color: #aaa; }
 #player-folder-name-container { font-size: 0.9em; color: #888; text-align: left; width: 90%; max-width: 400px; }
 #player-folder-name-container .folder-label { display: block; text-align: left; font-size: 0.9em; }
 #player-folder-name { display: block; text-align: center; font-size: 1.1em; font-weight: bold; margin-top: 2px; }
 
+/* プレイヤー画面 > 画面中央部 > アートワーク */
+#player-main-ui .artwork-container { width: 65vw; max-width: 280px; aspect-ratio: 1 / 1; transition: width 0.3s ease; }
+#player-artwork { width: 100%; height: 100%; border-radius: 12px; object-fit: cover; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
+
+/* プレイヤー画面 > 画面中央部 > カスタムシークバー */
+#audioPlayer { width: 90%; max-width: 400px; margin-top: 10px; } /*おそらく非表示にしている*/
+#custom-seekbar {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 35px;
+    background: transparent;
+    margin: 0;
+    flex-grow: 1;
+    cursor: pointer;
+    accent-color: #7e57c2; 
+}
+#custom-seekbar::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    height: 16px;
+    width: 16px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+    margin-top: -5px; /* トラックの中央に来るように調整 */
+    position: relative;
+    z-index: 2;
+}
+#custom-seekbar::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 6px; /* ★見た目の線の太さ */
+    cursor: pointer;
+    border-radius: 2px;
+    border: none;
+    /* 背景色はJSの style.background で「紫 | 灰色」に塗り分けます */
+}
+.time-display {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.8em;
+    color: #ccc;
+    width: 100%;
+}
+#custom-seekbar-container {
+    width: 100%;         /* 画面幅に対する割合（スマホ用） */
+    max-width: 400px;   /* 最大幅（PCなどでこれ以上長くならないようにする制限） */
+    margin-top: 5px;    /* 上の要素との隙間 */
+}
+
+.song-title { font-size: 1.2em; font-weight: 600; }
+.game-title { font-size: 1em; color: #aaa; }
+
+/* プレイヤー画面 > 画面中央部 > オーディオ操作ボタン */
+#player-manual-controls {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    gap: 20px; /* ボタン間の隙間 */
+    width: 100%;
+    max-width: 400px; /* PCなどで広がりすぎないための上限 */
+    margin-top: 5px;
+}
+.control-btn {
+    width: 30%;
+    padding: 6px 0;
+    display: flex;
+    font-size: 1em;
+    justify-content: center;
+    align-items: center;
+    box-sizing: border-box;
+    border-radius: 20px;
+    background-color: #3a3a3c;
+    color: #fff;
+    border: 1px solid #555;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+.control-btn:active {
+    background-color: #555;
+}
+.small-btn {
+    width: 30%;
+}
+.play-btn {
+    width: 12%;
+    font-size: 0.8em;
+    font-weight: bold;
+}
+
+/* プレイヤー画面 > 画面中央部 > 歌詞のウィンドウ */
 #lyrics-display-container {
     width: 100%;
     display: flex;
     flex-direction: column;
-    /* view-modeによって高さや表示が変わる */
 }
-
-#lyrics-controls-container {
-    width: 100%;
+.lyrics-view { flex-grow: 1; overflow: auto; }
+.lyrics-panel {
+    background-color: rgba(30, 30, 30, 0.7);
+    border: 1px solid #444;
+    /* border-radius: 12px; */
+    padding: 15px;
+    box-sizing: border-box;
+    height: 100%;
 }
+/* プレイヤー画面 > 画面中央部 > 歌詞のウィンドウ > 歌詞の一部表示 */
+#partial-lyrics-display {
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    font-size: 0.88em;
+    line-height: 1.6;
+    text-align: center;
+    height: var(--partial-lyrics-panel-height);
+    flex-grow: 0;
+}
+#partial-lyrics-display p { margin: 0.1em 0; color: #888; transition: color 0.3s, font-size 0.3s; }
+#partial-lyrics-display p.current-lyric { color: #fff; font-size: 1.2em; }
+/* プレイヤー画面 > 画面中央部 > 歌詞のウィンドウ > 歌詞の全文表示 */
+#full-lyrics-display {
+    font-size: 0.96em;
+    line-height: 1.8;
+}
+#full-lyrics-display p { margin: 0.5em 0; opacity: 0.6; }
+#full-lyrics-display p.current-lyric { opacity: 1; }
 
-/* 耐久ボタンと歌詞エリアを縦に並べて管理するコンテナ */
+/* プレイヤー画面 > 画面下部 */
 #bottom-controls-container {
     position: absolute;
     bottom: calc(var(--nav-height) + var(--safe-area-bottom) - 50px); /* 位置調整 */
@@ -95,20 +237,18 @@ input[type="file"] { display: none; }
     z-index: 20;
     pointer-events: none;
 }
-
 #bottom-controls-container > * {
     pointer-events: auto;
     width: 100%;
 }
 
-/* ▼▼▼ 耐久モードボタン ▼▼▼ */
+/* プレイヤー画面 > 画面下部 > 耐久モードボタン */
 #endurance-menu-container {
     display: flex;
     justify-content: center;
     /* orderはHTML順序（Endurance -> Lyrics）と flex-direction: column で自然に上になるので指定不要ですが念のため */
     order: 0;
 }
-
 #endurance-select {
     background-color: #333;
     color: #fff;
@@ -126,99 +266,10 @@ input[type="file"] { display: none; }
     background-color: #444;
 }
 
-/* ▼▼▼ 歌詞コンテナ ▼▼▼ */
-
-/* 表示条件: 通常表示以外のときは耐久ボタンを隠す */
-.view-partial #endurance-menu-container,
-.view-full #endurance-menu-container {
-    display: none !important;
+/* プレイヤー画面 > 画面下部 > 歌詞の切り替えボタン */
+#lyrics-controls-container {
+    width: 100%;
 }
-
-/* ▼▼▼ プレイヤー画面の表示モードごとのレイアウト ▼▼▼ */
-/* 1-a. 通常表示 */
-.view-normal #lyrics-display-container {
-    display: none;
-}
-.view-normal #player-main-ui { flex-grow: 1; }
-.view-normal .lyrics-view { display: none; }
-
-/* 1-b. 歌詞の一部表示 */
-.view-partial { justify-content: flex-start; }
-.view-partial #player-main-ui { flex-grow: 0; flex-shrink: 0; }
-.view-partial .player-content { height: auto; padding: 20px 20px 0 20px; gap: 8px; }
-.view-partial #player-main-ui .artwork-container { width: 20vw; max-width: 75px; }
-.view-partial #lyrics-display-container {
-    display: flex;
-    height: var(--partial-lyrics-panel-height);
-    margin-top: 10px;
-}
-.view-partial #partial-lyrics-display { display: flex; }
-.view-partial #full-lyrics-display { display: none; }
-.view-partial #endurance-menu-container { display: none !important; }
-
-/* 1-c. 歌詞の全文表示 */
-.view-full .player-content > *:not(#lyrics-display-container) {
-    display: none !important;
-}
-
-.view-full .player-content {
-    justify-content: flex-start; /* 上詰めにする */
-    padding-top: 20px;
-}
-
-.view-full #lyrics-display-container {
-    display: flex; 
-    height: 100%; 
-    width: 100%; 
-    /* 下部コントロール(約90px)分の余白を空ける */
-    padding-bottom: 110px; 
-    box-sizing: border-box;
-}
-
-.view-full #full-lyrics-display { display: block; }
-.view-full #partial-lyrics-display { display: none; }
-.view-full #endurance-menu-container { display: none !important; }
-.view-full #full-lyrics-display { display: block; }
-.view-full #partial-lyrics-display { display: none; }
-
-/* --- 歌詞表示UIのスタイル --- */
-.lyrics-view { flex-grow: 1; overflow: auto; }
-.lyrics-panel {
-    background-color: rgba(30, 30, 30, 0.7);
-    border: 1px solid #444;
-    /* border-radius: 12px; */
-    padding: 15px;
-    box-sizing: border-box;
-    height: 100%;
-}
-/*
-.view-partial .lyrics-panel,
-.view-full .lyrics-panel {
-    border: none;
-    background: transparent;
-}
-*/
-#partial-lyrics-display {
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    font-size: 0.88em;
-    line-height: 1.6;
-    text-align: center;
-    height: var(--partial-lyrics-panel-height);
-    flex-grow: 0;
-}
-#partial-lyrics-display p { margin: 0.1em 0; color: #888; transition: color 0.3s, font-size 0.3s; }
-#partial-lyrics-display p.current-lyric { color: #fff; font-size: 1.2em; }
-
-#full-lyrics-display {
-    font-size: 0.96em;
-    line-height: 1.8;
-}
-#full-lyrics-display p { margin: 0.5em 0; opacity: 0.6; }
-#full-lyrics-display p.current-lyric { opacity: 1; }
-
-/* 歌詞コントロール */
 #lyrics-controls {
     width: 100%;
     z-index: 20;
@@ -231,6 +282,9 @@ input[type="file"] { display: none; }
     padding: 5px;
     gap: 10px;
 }
+#player-screen:not(.active) #lyrics-controls {
+    display: none !important;
+}
 .language-selector { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 .language-selector button { font-size: 0.8em; padding: 5px 12px; border-radius: 15px; background-color: #333; }
 .language-selector button.active { background-color: #7e57c2; color: white; }
@@ -238,7 +292,54 @@ input[type="file"] { display: none; }
 .view-toggle button { font-size: 0.9em; padding: 6px 16px; background: none; border: none; color: #aaa; }
 .view-toggle button.active { background-color: #555; color: white; border-radius: 16px; }
 
-/* --- 2. 一覧画面 --- */
+/* 歌詞切り替えボタンによる変化 ここから */
+
+/* 通常表示以外のときは耐久ボタンを隠す */
+.view-partial #endurance-menu-container, .view-full #endurance-menu-container {
+    display: none !important;
+}
+/* 通常表示 */
+.view-normal #lyrics-display-container {
+    display: none;
+}
+.view-normal #player-main-ui { flex-grow: 1; }
+.view-normal .lyrics-view { display: none; }
+/* 歌詞の一部表示 */
+.view-partial { justify-content: flex-start; }
+.view-partial #player-main-ui { flex-grow: 0; flex-shrink: 0; }
+.view-partial .player-content { height: auto; padding: 20px 20px 0 20px; gap: 8px; }
+.view-partial #player-main-ui .artwork-container { width: 20vw; max-width: 75px; }
+.view-partial #lyrics-display-container {
+    display: flex;
+    height: var(--partial-lyrics-panel-height);
+    margin-top: 10px;
+}
+.view-partial #partial-lyrics-display { display: flex; }
+.view-partial #full-lyrics-display { display: none; }
+.view-partial #endurance-menu-container { display: none !important; }
+/* 歌詞の全文表示 */
+.view-full .player-content > *:not(#lyrics-display-container) {
+    display: none !important;
+}
+.view-full .player-content {
+    justify-content: flex-start;
+    padding-top: 20px;
+}
+.view-full #lyrics-display-container {
+    display: flex; 
+    height: 100%; 
+    width: 100%; 
+    padding-bottom: 110px; 
+    box-sizing: border-box;
+}
+.view-full #full-lyrics-display { display: block; }
+.view-full #partial-lyrics-display { display: none; }
+.view-full #endurance-menu-container { display: none !important; }
+.view-full #full-lyrics-display { display: block; }
+.view-full #partial-lyrics-display { display: none; }
+/* 歌詞切り替えボタンによる変化 ここまで */
+
+/* 一覧画面*/
 #list-tree-view-container { height: calc(100% - var(--list-button-height)); padding: 10px; box-sizing: border-box; }
 .fixed-bottom-button-container {
     position: absolute; bottom: 0; left: 0; right: 0; height: var(--list-button-height);
@@ -248,17 +349,21 @@ input[type="file"] { display: none; }
 }
 #list-random-button:active {
     background-color: #555;
-    transform: translateY(1px); /* 軽く押し込む演出 */
+    transform: translateY(1px);
 }
 
-/* --- 3. 設定画面 --- */
+/* 全般設定画面 */
 .settings-view { width: 100%; height: 100%; display: none; flex-direction: column; }
 .settings-view.active { display: flex; }
 .settings-button-group { flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 15px; padding: 20px; }
+#versionDisplay { color: #888; font-size: 0.9em; margin-bottom: 20px; order: -1; }
 .settings-button { text-align: center; width: 100%; max-width: 350px; box-sizing: border-box; }
 .detail-button { margin-top: 25px; }
-#versionDisplay { color: #888; font-size: 0.9em; margin-bottom: 20px; order: -1; }
+
+/* 全般設定画面 > 詳細設定画面 */
+/* 全般設定画面 > 詳細設定画面 > 上画面（ツリー表示） */
 .split-top { height: 50%; border-bottom: 1px solid #444; }
+/* 全般設定画面 > 詳細設定画面 > 下画面 */
 .split-bottom { height: 50%; background-color: #1c1c1e; padding: 10px; box-sizing: border-box; overflow-y: auto; position: relative; }
 #back-to-main-settings-button { position: absolute; top: 10px; left: 10px; padding: 5px 15px; font-size: 0.9em; }
 #properties-panel h4 { margin-top: 40px; }
@@ -268,13 +373,12 @@ input[type="file"] { display: none; }
     border: 1px solid #555; border-radius: 5px; color: #fff;
 }
 .prop-details.readonly span { color: #aaa; font-size: 0.9em; }
-#loop-settings-panel, #lyrics-settings-panel { border-left: 3px solid #555; padding-left: 10px; margin-top: 15px; }
-#derivative-settings-panel {
-    border-left: 3px solid #555;
-    padding-left: 10px;
-    margin-top: 5px;
-    margin-bottom: 10px;
+/* 全般設定画面 > 詳細設定画面 > 下画面  (特定の設定の展開時のUI) */
+#loop-settings-panel, #lyrics-settings-panel, #artwork-management-ui, #derivative-settings-panel {
+    border-left: 3px solid #555; padding-left: 10px; margin-top: 15px;
 }
+
+/* 全般設定画面 > 詳細設定画面 > 下画面 > 曲ファイルのみ > 歌詞の表示 */
 .lyrics-editor {
     display: flex;
     flex-direction: row;
@@ -301,8 +405,7 @@ input[type="file"] { display: none; }
     flex: 1 1 auto;
 }
 
-#artwork-management-ui { margin-bottom: 20px; }
-
+/* 全般設定画面 > 詳細設定画面 > 下画面 > メモ機能 */
 #prop-memo {
     width: 100%;
     min-height: 60px; /* 初期の高さ */
@@ -319,7 +422,8 @@ input[type="file"] { display: none; }
     margin-top: 5px;
 }
 
-/* --- 共通ツリービュー --- */
+/* 一覧表示 > ツリー表示 */
+/* 全般設定画面 > 詳細設定画面 > 上画面（ツリー表示） */
 .tree-view ul { padding-left: 12px; list-style-type: none; }
 .tree-view li { padding: 2px 0; }
 .list-item-container { display: flex; align-items: flex-start; justify-content: space-between; padding: 6px 4px; }
@@ -329,7 +433,7 @@ input[type="file"] { display: none; }
 .tree-view li.open > ul { display: block; }
 .selected-item > .list-item-container { background-color: #3a3a3c; border-radius: 6px; }
 
-/* --- 下部ナビゲーション --- */
+/* 画面切り替えバー */
 #bottom-nav {
     position: fixed; bottom: 0; left: 0; width: 100%; height: var(--nav-height);
     background-color: rgba(28, 28, 30, 0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
@@ -339,114 +443,3 @@ input[type="file"] { display: none; }
 .nav-item { flex: 1; display: flex; justify-content: center; align-items: center; height: 100%; }
 .nav-button { background: none; border: none; color: #8e8e93; font-size: 0.9em; cursor: pointer; }
 .nav-button.active { color: #fff; }
-
-/* --- ローディングオーバーレイ --- */
-#loading-overlay {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background-color: rgba(0, 0, 0, 0.7); display: flex;
-    justify-content: center; align-items: center; z-index: 1000;
-    color: white; font-size: 1.2em;
-}
-
-audio.hidden {
-    display: none !important;
-}
-
-#player-manual-controls {
-    display: flex;
-    flex-direction: row;
-    justify-content: center;
-    gap: 20px; /* ボタン間の隙間 */
-    width: 100%;
-    max-width: 400px; /* PCなどで広がりすぎないための上限 */
-    margin-top: 5px;
-}
-
-.control-btn {
-    width: 30%;
-    padding: 6px 0;
-    display: flex;
-    font-size: 1em;
-    justify-content: center;
-    align-items: center;
-    box-sizing: border-box;
-    border-radius: 20px;
-    background-color: #3a3a3c;
-    color: #fff;
-    border: 1px solid #555;
-    cursor: pointer;
-    transition: background-color 0.2s;
-}
-
-.control-btn:active {
-    background-color: #555;
-}
-
-.small-btn {
-    width: 30%;
-}
-
-.play-btn {
-    width: 12%;
-    font-size: 0.8em;
-    font-weight: bold;
-}
-
-.lyrics-panel.lang-newworld p {
-    font-family: 'NewWorld', sans-serif !important;
-    letter-spacing: 0.1em;
-}
-
-#player-screen:not(.active) #lyrics-controls {
-    display: none !important;
-}
-
-#custom-seekbar {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 100%;
-    height: 35px;
-    background: transparent;
-    margin: 0;
-    
-    /* 以下、下のブロックから統合 */
-    flex-grow: 1;
-    cursor: pointer;
-    accent-color: #7e57c2; 
-}
-
-#custom-seekbar::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    height: 16px;
-    width: 16px;
-    border-radius: 50%;
-    background: #fff;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.5);
-    margin-top: -5px; /* トラックの中央に来るように調整 */
-    position: relative;
-    z-index: 2;
-}
-
-#custom-seekbar::-webkit-slider-runnable-track {
-    width: 100%;
-    height: 6px; /* ★見た目の線の太さ */
-    cursor: pointer;
-    border-radius: 2px;
-    border: none;
-    /* 背景色はJSの style.background で「紫 | 灰色」に塗り分けます */
-}
-
-.time-display {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 0.8em;
-    color: #ccc;
-    width: 100%;
-}
-
-#custom-seekbar-container {
-    width: 100%;         /* 画面幅に対する割合（スマホ用） */
-    max-width: 400px;   /* 最大幅（PCなどでこれ以上長くならないようにする制限） */
-    margin-top: 5px;    /* 上の要素との隙間 */
-}

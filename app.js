@@ -1,48 +1,85 @@
 // =================================================================
-// Application Version
+// アプリのバージョン
 // =================================================================
-const APP_VERSION = 'v.5.1.9'; // Fixed property panel UI bugs
+const APP_VERSION = 'v.5.2.0'; // Fixed property panel UI bugs
 
 // =================================================================
-// HTML Element Acquisition
+// HTML要素の取得
 // =================================================================
 const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+// ローディングオーバーレイ
+const loadingOverlay = document.createElement('div');
+loadingOverlay.id = 'loading-overlay';
+loadingOverlay.innerHTML = '<div>データを処理中...</div>';
+loadingOverlay.style.display = 'none';
+document.body.appendChild(loadingOverlay);
+
+// プレイヤー画面
 const playerScreen = document.getElementById('player-screen');
-const listScreen = document.getElementById('list-screen');
-const settingsScreen = document.getElementById('settings-screen');
-const mainSettingsView = document.getElementById('main-settings');
-const detailSettingsView = document.getElementById('detail-settings');
-const navPlayerButton = document.getElementById('nav-player');
-const navListButton = document.getElementById('nav-list');
-const navSettingsButton = document.getElementById('nav-settings');
+// プレイヤー画面 > 画面中央部
+const playerMainUI = document.getElementById('player-main-ui');
 const playerFolderName = document.getElementById('player-folder-name');
 const playerArtwork = document.getElementById('player-artwork');
 const playerSongName = document.getElementById('player-song-name');
 const playerGameName = document.getElementById('player-game-name');
-const listTreeViewContainer = document.getElementById('list-tree-view-container');
-const listRandomButton = document.getElementById('list-random-button');
-const fileInput = document.getElementById('fileInput');
-const exportButton = document.getElementById('export-settings-button');
-const importInput = document.getElementById('import-settings-input');
-const artworkFolderInput = document.getElementById('artwork-folder-input');
-const gotoDetailSettingsButton = document.getElementById('goto-detail-settings-button');
-const settingsTreeViewContainer = document.getElementById('settings-tree-view-container');
-const backToMainSettingsButton = document.getElementById('back-to-main-settings-button');
-const propertiesPanel = document.getElementById('properties-panel');
-const propItemName = document.getElementById('prop-item-name');
-const propDisplayName = document.getElementById('prop-display-name');
-const propSortOrder = document.getElementById('prop-sort-order');
-const songSpecificSettings = document.getElementById('song-specific-settings');
-const propMultiplier = document.getElementById('prop-lottery-multiplier');
-const folderSpecificSettings = document.getElementById('folder-specific-settings');
-const propIsGame = document.getElementById('prop-is-game');
-const savePropertiesButton = document.getElementById('save-properties-button');
+// プレイヤー画面 > 画面中央部 > カスタムシークバー
 const audioPlayer = document.getElementById('audioPlayer');
 const customSeekbarContainer = document.getElementById('custom-seekbar-container');
 const customSeekbar = document.getElementById('custom-seekbar');
 const currentTimeLabel = document.getElementById('current-time');
 const totalTimeLabel = document.getElementById('total-time');
+// プレイヤー画面 > 画面中央部 > オーディオ操作ボタン
+const ctrlPrevButton = document.getElementById('ctrl-prev-button');
+const ctrlPlayPauseButton = document.getElementById('ctrl-play-pause-button');
+const ctrlNextButton = document.getElementById('ctrl-next-button');
+// プレイヤー画面 > 画面中央部 > 歌詞のウィンドウ
+const lyricsDisplayContainer = document.getElementById('lyrics-display-container');
+const partialLyricsDisplay = document.getElementById('partial-lyrics-display');
+const fullLyricsDisplay = document.getElementById('full-lyrics-display');
+
+// プレイヤー画面 > 画面下部 > 耐久モードボタン
+const enduranceMenuContainer = document.getElementById('endurance-menu-container');
+const enduranceSelect = document.getElementById('endurance-select');
+// プレイヤー画面 > 画面下部 > 歌詞の切り替えボタン
+const lyricsControlsContainer = document.getElementById('lyrics-controls-container');
+const lyricsControls = document.getElementById('lyrics-controls');
+const lyricsLanguageSelector = document.getElementById('lyrics-language-selector');
+const lyricsViewToggle = document.getElementById('lyrics-view-toggle');
+
+// 一覧画面
+const listScreen = document.getElementById('list-screen');
+// 一覧画面 > ツリー表示
+const listTreeViewContainer = document.getElementById('list-tree-view-container');
+// 一覧画面 > ランダム再生 / 再生予約 ボタン
+const listRandomButton = document.getElementById('list-random-button');
+
+// 全般設定画面
+const settingsScreen = document.getElementById('settings-screen');
+const mainSettingsView = document.getElementById('main-settings');
 const versionDisplay = document.getElementById('versionDisplay');
+const fileInput = document.getElementById('fileInput');
+const importInput = document.getElementById('import-settings-input');
+const exportButton = document.getElementById('export-settings-button');
+const artworkFolderInput = document.getElementById('artwork-folder-input');
+const gotoDetailSettingsButton = document.getElementById('goto-detail-settings-button');
+// 全般設定画面 > 詳細設定画面
+const detailSettingsView = document.getElementById('detail-settings');
+// 全般設定画面 > 詳細設定画面 > 上画面（ツリー表示）
+const settingsTreeViewContainer = document.getElementById('settings-tree-view-container');
+// 全般設定画面 > 詳細設定画面 > 下画面
+const propertiesPanel = document.getElementById('properties-panel');
+const savePropertiesButton = document.getElementById('save-properties-button');
+
+// 全般設定画面 > 詳細設定画面 > 下画面 > フォルダ・ファイル共通
+const backToMainSettingsButton = document.getElementById('back-to-main-settings-button');
+const propItemName = document.getElementById('prop-item-name');
+const propDisplayName = document.getElementById('prop-display-name');
+const propSortOrder = document.getElementById('prop-sort-order');
+
+// 全般設定画面 > 詳細設定画面 > 下画面 > 曲ファイルのみ
+const songSpecificSettings = document.getElementById('song-specific-settings');
+const propMultiplier = document.getElementById('prop-lottery-multiplier');
+// 全般設定画面 > 詳細設定画面 > 下画面 > 曲ファイルのみ > ループに対応
 const loopFeatureContainer = document.getElementById('loop-feature-container');
 const propLoopCompatible = document.getElementById('prop-loop-compatible');
 const loopSettingsPanel = document.getElementById('loop-settings-panel');
@@ -52,15 +89,7 @@ const propLoopStart = document.getElementById('prop-loop-start');
 const propLoopEnd = document.getElementById('prop-loop-end');
 const propLoopStartAuto = document.getElementById('prop-loop-start-auto');
 const propLoopEndAuto = document.getElementById('prop-loop-end-auto');
-const playerMainUI = document.getElementById('player-main-ui');
-const propIsDerivative = document.getElementById('prop-is-derivative');
-const derivativeSettingsPanel = document.getElementById('derivative-settings-panel');
-const propDerivativeMultiplier = document.getElementById('prop-derivative-multiplier');
-const lyricsDisplayContainer = document.getElementById('lyrics-display-container');
-const lyricsControlsContainer = document.getElementById('lyrics-controls-container');
-const lyricsLanguageSelector = document.getElementById('lyrics-language-selector');
-const lyricsViewToggle = document.getElementById('lyrics-view-toggle');
-const lyricsControls = document.getElementById('lyrics-controls');
+// 全般設定画面 > 詳細設定画面 > 下画面 > 曲ファイルのみ > 歌詞の表示
 const propLyricsCompatible = document.getElementById('prop-lyrics-compatible');
 const lyricsSettingsPanel = document.getElementById('lyrics-settings-panel');
 const propLyricsLangCount = document.getElementById('prop-lyrics-lang-count');
@@ -68,49 +97,57 @@ const propLyricsCurrentLang = document.getElementById('prop-lyrics-current-lang'
 const propLyricsLangName = document.getElementById('prop-lyrics-lang-name');
 const propLyricsTimings = document.getElementById('prop-lyrics-timings');
 const propLyricsText = document.getElementById('prop-lyrics-text');
+
+// 全般設定画面 > 詳細設定画面 > 下画面 > フォルダのみ（カテゴリフォルダ、派生曲所有フォルダ）
+const folderSpecificSettings = document.getElementById('folder-specific-settings');
+const propIsGame = document.getElementById('prop-is-game');
 const artworkManagementUI = document.getElementById('artwork-management-ui');
 const artworkPreview = document.getElementById('artwork-preview');
 const artworkUploadInput = document.getElementById('artwork-upload-input');
 const artworkRemoveButton = document.getElementById('artwork-remove-button');
+// 全般設定画面 > 詳細設定画面 > 下画面 > フォルダのみ（カテゴリフォルダ、派生曲所有フォルダ） > 派生曲所有フォルダ
+const propIsDerivative = document.getElementById('prop-is-derivative');
+const derivativeSettingsPanel = document.getElementById('derivative-settings-panel');
+const propDerivativeMultiplier = document.getElementById('prop-derivative-multiplier');
+
+// 全般設定画面 > 詳細設定画面 > 下画面 > メモ機能
 const propMemo = document.getElementById('prop-memo');
-const ctrlPrevButton = document.getElementById('ctrl-prev-button');
-const ctrlPlayPauseButton = document.getElementById('ctrl-play-pause-button');
-const ctrlNextButton = document.getElementById('ctrl-next-button');
-const enduranceMenuContainer = document.getElementById('endurance-menu-container');
-const enduranceSelect = document.getElementById('endurance-select');
-const loadingOverlay = document.createElement('div');
-const partialLyricsDisplay = document.getElementById('partial-lyrics-display');
-const fullLyricsDisplay = document.getElementById('full-lyrics-display');
-loadingOverlay.id = 'loading-overlay';
-loadingOverlay.innerHTML = '<div>データを処理中...</div>';
-loadingOverlay.style.display = 'none';
-document.body.appendChild(loadingOverlay);
+
+// 画面切り替えバー
+const navPlayerButton = document.getElementById('nav-player');
+const navListButton = document.getElementById('nav-list');
+const navSettingsButton = document.getElementById('nav-settings');
 
 // =================================================================
-// Global Variables
+// グローバル変数
 // =================================================================
+
+// オーディオ関連
 let musicEngine = null;
 let isDraggingSeekbar = false;
-let libraryFiles = [];
-let fileTree = {};
-let selectedItemPath = null;
-let isSelectedItemFolder = false;
 let recentlyPlayed = [];
 let songProperties = {};
 let nextSongToPlay = null;
 let activeRandomFolderPath = null;
 let currentSongPath = null;
-let lyricsUpdateInterval = null;
-let currentLyricsData = null;
-let currentLyricsLang = 0;
 let currentPlayerView = 'normal';
-let rootPath = null; // ルートディレクトリのパスを保持
+// 耐久モード関連
 let currentEnduranceMinutes = 0; // 現在の耐久モード（分）。0は無効
 let currentLoopCount = 0;
 let currentSongTargetLoopCount = 1; // 現在再生中の曲の目標ループ回数
+// 歌詞関連
+let lyricsUpdateInterval = null;
+let currentLyricsData = null;
+let currentLyricsLang = 0;
+// ツリー関連
+let libraryFiles = [];
+let fileTree = {};
+let selectedItemPath = null;
+let isSelectedItemFolder = false;
+let rootPath = null; // ルートディレクトリのパスを保持
 
 // =================================================================
-// OS class
+// OSの判断とオーディオ形式
 // =================================================================
 function initAudioEngine() {
     if (isIOS) {
@@ -134,6 +171,7 @@ class Html5AudioEngine {
         this.checkLoop = this.checkLoop.bind(this);
     }
 
+    // 曲の再生
     play(file, loopStart, loopEnd) {
         return new Promise((resolve, reject) => {
             const blobUrl = URL.createObjectURL(file);
@@ -214,7 +252,7 @@ class WebAudioEngine {
         this.isCountedInThisLoop = false;
     }
 
-    // play メソッド
+    // 曲の再生
     async play(file, loopStart, loopEnd) {
         if (this.ctx.state === 'suspended') await this.ctx.resume();
         
@@ -449,7 +487,7 @@ class WebAudioEngine {
 }
 
 // =================================================================
-// Application Initialization
+// アプリの初期化
 // =================================================================
 window.addEventListener('load', async () => {
 	console.log('App loading...');
@@ -476,262 +514,77 @@ window.addEventListener('load', async () => {
 });
 
 // =================================================================
-// Event Listeners
+// イベントリスナー
 // =================================================================
-navPlayerButton.addEventListener('click', () => switchScreen('player'));
-navListButton.addEventListener('click', () => switchScreen('list'));
-navSettingsButton.addEventListener('click', () => switchScreen('settings'));
-gotoDetailSettingsButton.addEventListener('click', () => switchSettingsView('detail'));
-backToMainSettingsButton.addEventListener('click', () => switchSettingsView('main'));
+
+// プレイヤー画面 > 画面中央部 > カスタムシークバー
+audioPlayer.addEventListener('timeupdate', handleTimeUpdate);
+audioPlayer.addEventListener('ended', handleSongEnd);
+customSeekbar.addEventListener('input', handleSeekbarInput);
+customSeekbar.addEventListener('change', handleSeekbarChange);
+// プレイヤー画面 > 画面中央部 > オーディオ操作ボタン
+ctrlPrevButton.addEventListener('click', handlePrevButton);
+ctrlPlayPauseButton.addEventListener('click', handlePlayPause);
+if (ctrlNextButton) {
+    ctrlNextButton.addEventListener('click', playNextSong);
+}
+// プレイヤー画面 > 画面下部 > 耐久モードボタン
+enduranceSelect.addEventListener('change', handleEnduranceChange);
+// プレイヤー画面 > 画面下部 > 歌詞の切り替えボタン
+lyricsLanguageSelector.addEventListener('click', handleLanguageChange);
+lyricsViewToggle.addEventListener('click', handleViewToggle);
+// 一覧画面 > ランダム再生 / 再生予約 ボタン
 listRandomButton.addEventListener('click', handleRandomButton);
-listTreeViewContainer.addEventListener('click', handleTreeClick);
-settingsTreeViewContainer.addEventListener('click', handleTreeClick);
+// 全般設定画面
 fileInput.addEventListener('change', handleFileInputChange);
-savePropertiesButton.addEventListener('click', handleSaveProperties);
-exportButton.addEventListener('click', handleExport);
 importInput.addEventListener('change', handleImport);
+exportButton.addEventListener('click', handleExport);
 if (artworkFolderInput) {
     artworkFolderInput.addEventListener('change', handleArtworkFolderRecovery);
 }
-audioPlayer.addEventListener('timeupdate', handleTimeUpdate);
+gotoDetailSettingsButton.addEventListener('click', () => switchSettingsView('detail'));
+// 全般設定画面 > 詳細設定画面 > 下画面
+backToMainSettingsButton.addEventListener('click', () => switchSettingsView('main'));
+savePropertiesButton.addEventListener('click', handleSaveProperties);
+// 全般設定画面 > 詳細設定画面 > 下画面 > 曲ファイルのみ > ループに対応
 propLoopCompatible.addEventListener('change', handleLoopCompatibleChange);
-if (propIsDerivative) {
-    propIsDerivative.addEventListener('change', () => {
-        derivativeSettingsPanel.classList.toggle('hidden', !propIsDerivative.checked);
-    });
-}
+// 全般設定画面 > 詳細設定画面 > 下画面 > 曲ファイルのみ > 歌詞の表示
 propLyricsCompatible.addEventListener('change', handleLyricsCompatibleChange);
 propLyricsLangCount.addEventListener('change', handleLyricsSettingChange);
 propLyricsCurrentLang.addEventListener('change', handleLyricsSettingChange);
-lyricsViewToggle.addEventListener('click', handleViewToggle);
-lyricsLanguageSelector.addEventListener('click', handleLanguageChange);
-audioPlayer.addEventListener('ended', handleSongEnd);
 propLyricsTimings.addEventListener('input', autoResizeLyricsEditor);
 propLyricsText.addEventListener('input', autoResizeLyricsEditor);
+// 全般設定画面 > 詳細設定画面 > 下画面 > フォルダのみ（カテゴリフォルダ、派生曲所有フォルダ）
 propIsGame.addEventListener('change', () => {
     // UIの表示/非表示を切り替えるだけにする
     artworkManagementUI.classList.toggle('hidden', !propIsGame.checked);
 });
 artworkUploadInput.addEventListener('change', handleArtworkUpload);
 artworkRemoveButton.addEventListener('click', handleArtworkRemove);
+// 全般設定画面 > 詳細設定画面 > 下画面 > フォルダのみ（カテゴリフォルダ、派生曲所有フォルダ） > 派生曲所有フォルダ
+if (propIsDerivative) {
+    propIsDerivative.addEventListener('change', () => {
+        derivativeSettingsPanel.classList.toggle('hidden', !propIsDerivative.checked);
+    });
+}
+// 全般設定画面 > 詳細設定画面 > 下画面 > メモ機能
 if (propMemo) {
     propMemo.addEventListener('input', () => autoResizeTextarea(propMemo));
 }
-ctrlPlayPauseButton.addEventListener('click', () => {
-    if (!musicEngine) return;
-    
-    // 曲が入っていない（初期状態）のときだけ、Nextボタンと同じ処理（ランダム再生等）を行う
-    if (musicEngine.getDuration() === 0 && !currentSongPath) {
-        handleRandomButton(); 
-        return;
-    }
-
-    // それ以外は、現在セットされている曲を 再生/一時停止 するだけ
-    if (musicEngine.getPaused()) {
-        musicEngine.resume();
-        updatePlayButtonIcon(true);
-    } else {
-        musicEngine.pause();
-        updatePlayButtonIcon(false);
-    }
-});
-ctrlPrevButton.addEventListener('click', () => {
-    if (musicEngine) {
-        const current = musicEngine.getCurrentTime();
-        musicEngine.seek(Math.max(0, current - 5));
-    }
-});
-customSeekbar.addEventListener('input', () => {
-    isDraggingSeekbar = true;
-    currentTimeLabel.textContent = formatTime(customSeekbar.value);
-    updateSeekbarVisuals();
-});
-customSeekbar.addEventListener('change', () => {
-    if (musicEngine) {
-        // 数値に変換して渡す
-        musicEngine.seek(parseFloat(customSeekbar.value));
-    }
-    isDraggingSeekbar = false;
-});
-if (ctrlNextButton) {
-    ctrlNextButton.addEventListener('click', playNextSong);
-}
-enduranceSelect.addEventListener('change', () => {
-    // 1. 変数を更新
-    const minutes = parseInt(enduranceSelect.value, 10);
-    currentEnduranceMinutes = minutes;
-
-    // 2. 現在再生中の曲に対して即時反映
-    if (musicEngine && currentSongPath) {
-        const props = songProperties[currentSongPath] || {};
-        // ループ対応曲を再生中なら、エンジンの挙動を更新
-        if (props.isLoopCompatible && props.isLoopTimeLocked) {
-            musicEngine.updateEnduranceMode(currentEnduranceMinutes);
-        }
-    }
-});
+// 画面切り替えバー
+navPlayerButton.addEventListener('click', () => switchScreen('player'));
+navListButton.addEventListener('click', () => switchScreen('list'));
+navSettingsButton.addEventListener('click', () => switchScreen('settings'));
+// 一覧画面 > ツリー表示
+// 全般設定画面 > 詳細設定画面 > 上画面（ツリー表示）
+listTreeViewContainer.addEventListener('click', handleTreeClick);
+settingsTreeViewContainer.addEventListener('click', handleTreeClick);
 
 // =================================================================
-// Event Handler Functions
+// イベントハンドラ
 // =================================================================
-async function handleFileInputChange(event) {
-    const files = Array.from(event.target.files);
-    if (files.length === 0) return;
-    showLoading(`インポート中: 0 / ${files.length}`);
-    try {
-        await db.songs.clear();
-        await db.artworks.clear(); // アートワークもクリア
-        for (let i = 0; i < files.length; i++) {
-            const file = files[i];
-            const songRecord = { path: file.webkitRelativePath, file: file };
-            await db.songs.put(songRecord);
-            if ((i + 1) % 10 === 0 || i === files.length - 1) {
-                updateLoadingMessage(`インポート中: ${i + 1} / ${files.length}`);
-            }
-        }
-        await loadDataFromDB();
-    } catch (error) {
-        console.error('Import error:', error);
-    } finally {
-        hideLoading();
-    }
-}
 
-async function handleSaveProperties() {
-	if (!selectedItemPath) return;
-	const props = songProperties[selectedItemPath] || {};
-	props.name = propDisplayName.value;
-	props.sortOrder = parseFloat(propSortOrder.value) || 0;
-    props.memo = propMemo.value;
-
-	if (isSelectedItemFolder) {
-		props.isGame = propIsGame.checked;
-        props.isDerivative = propIsDerivative.checked;
-        if (props.isDerivative) {
-            const parsedMultiplier = parseFloat(propDerivativeMultiplier.value);
-            props.multiplier = !isNaN(parsedMultiplier) ? parsedMultiplier : 1.0;
-        } else {
-            delete props.isDerivative;
-        }
-	} else {
-		const parsedMultiplier = parseFloat(propMultiplier.value);
-		props.multiplier = !isNaN(parsedMultiplier) ? parsedMultiplier : 1.0;
-        
-        props.isLoopCompatible = propLoopCompatible.checked;
-        if (props.isLoopCompatible) {
-            props.isLoopTimeLocked = propLoopTimeLocked.checked;
-            props.loopStartTime = timeStringToSeconds(propLoopStart.value);
-            props.loopEndTime = timeStringToSeconds(propLoopEnd.value);
-        } else {
-            delete props.isLoopTimeLocked;
-            delete props.loopStartTime;
-            delete props.loopEndTime;
-        }
-        
-        props.showLyrics = propLyricsCompatible.checked;
-        if (props.showLyrics) {
-            const langIndex = parseInt(propLyricsCurrentLang.value, 10);
-            saveCurrentLyricsLanguage(props, langIndex);
-            props.lyricsLangCount = parseInt(propLyricsLangCount.value, 10) || 1;
-            
-            const timings = propLyricsTimings.value.split('\n').map(t => parseFloat(t)).filter(t => !isNaN(t));
-            
-            props.lyricsData = timings.map((time, index) => {
-                const existingLineData = (props.lyricsData || [])[index] || { time: 0, lines: [] };
-                return { time: time, lines: existingLineData.lines };
-            });
-        } else {
-            delete props.lyricsLangCount;
-            delete props.lyricsLangNames;
-            delete props.lyricsData;
-        }
-	}
-
-	songProperties[selectedItemPath] = props;
-	await saveProperties('songProperties', songProperties);
-	renderTreeView(getOpenFolders());
-}
-
-async function handleExport() {
-	const propsToExport = await getProperties('songProperties');
-	if (!propsToExport || Object.keys(propsToExport).length === 0) return;
-	const settingsJSON = JSON.stringify(propsToExport, null, 2);
-	const blob = new Blob([settingsJSON], { type: 'application/json' });
-	const url = URL.createObjectURL(blob);
-	const a = document.createElement('a');
-	a.href = url;
-	a.download = 'setting.json';
-	document.body.appendChild(a);
-	a.click();
-	document.body.removeChild(a);
-	URL.revokeObjectURL(url);
-}
-
-function handleImport(event) {
-	const file = event.target.files[0];
-	if (!file) return;
-	const reader = new FileReader();
-	reader.onload = async (e) => {
-		try {
-			const importedSettings = JSON.parse(e.target.result);
-			await saveProperties('songProperties', importedSettings);
-			await loadDataFromDB();
-		} catch (error) {
-			console.error('Import error:', error);
-		}
-	};
-	reader.readAsText(file);
-	event.target.value = '';
-}
-
-async function handleArtworkUpload(event) {
-    const file = event.target.files[0];
-    if (!file || !selectedItemPath) return;
-
-    await db.artworks.put({ path: selectedItemPath, image: file });
-    const props = songProperties[selectedItemPath] || {};
-    props.hasArtwork = true;
-    props.artworkFileName = file.name;
-    songProperties[selectedItemPath] = props;
-    await saveProperties('songProperties', songProperties);
-    
-    await displayArtwork(selectedItemPath, artworkPreview); // プレビューを更新
-    event.target.value = '';
-}
-
-async function handleArtworkRemove() {
-    if (!selectedItemPath) return;
-
-    await db.artworks.delete(selectedItemPath);
-    const props = songProperties[selectedItemPath] || {};
-    delete props.hasArtwork;
-    songProperties[selectedItemPath] = props;
-    await saveProperties('songProperties', songProperties);
-
-    await displayArtwork(selectedItemPath, artworkPreview); // プレビューを更新（デフォルトに戻る）
-}
-
-
-function handleLoopCompatibleChange() {
-    const isChecked = propLoopCompatible.checked;
-    loopLockContainer.classList.toggle('hidden', !isChecked);
-    loopSettingsPanel.classList.toggle('hidden', !isChecked);
-}
-
-function handleLyricsSettingChange() {
-    const props = songProperties[selectedItemPath] || {};
-    if (!props) return;
-    const previousLangIndex = parseInt(propLyricsCurrentLang.dataset.previousValue || '0', 10);
-    saveCurrentLyricsLanguage(props, previousLangIndex);
-    props.lyricsLangCount = parseInt(propLyricsLangCount.value, 10);
-    songProperties[selectedItemPath] = props;
-    showPropertiesPanel(false);
-}
-
-function handleLyricsCompatibleChange() {
-    lyricsSettingsPanel.classList.toggle('hidden', !propLyricsCompatible.checked);
-}
-
+// オーディオの時間更新
 function handleTimeUpdate() {
     // PCモード（WebAudio）の時は、audioPlayer.currentTime は 0 のままなので
     // エンジンから正しい時間を取得して上書きする必要があります。
@@ -775,18 +628,172 @@ function handleTimeUpdate() {
     updateMediaPosition(currentTime, duration);
 }
 
+// 曲の終了
 function handleSongEnd(event) {
     if (event && event.target !== audioPlayer) return;
     if (lyricsUpdateInterval) clearInterval(lyricsUpdateInterval);
     setTimeout(playNextSong, 800);
 }
 
-function rewindFiveSeconds() {
-    if (audioPlayer) {
-        audioPlayer.currentTime = Math.max(audioPlayer.currentTime - 5, 0);
+// シークバーをタップ
+function handleSeekbarInput() {
+    isDraggingSeekbar = true;
+    currentTimeLabel.textContent = formatTime(customSeekbar.value);
+    updateSeekbarVisuals();
+}
+
+// シークバーのタップを離す
+function handleSeekbarChange() {
+    if (musicEngine) {
+        // 数値に変換して渡す
+        musicEngine.seek(parseFloat(customSeekbar.value));
+    }
+    isDraggingSeekbar = false;
+}
+
+// 5秒巻き戻し
+function handlePrevButton() {
+    if (musicEngine) {
+        const current = musicEngine.getCurrentTime();
+        musicEngine.seek(Math.max(0, current - 5));
     }
 }
 
+// 再生・停止ボタン
+function handlePlayPause() {
+    if (!musicEngine) return;
+    
+    // 曲が入っていない（初期状態）のときだけ、Nextボタンと同じ処理（ランダム再生等）を行う
+    if (musicEngine.getDuration() === 0 && !currentSongPath) {
+        handleRandomButton(); 
+        return;
+    }
+
+    // それ以外は、現在セットされている曲を 再生/一時停止 するだけ
+    if (musicEngine.getPaused()) {
+        musicEngine.resume();
+        updatePlayButtonIcon(true);
+    } else {
+        musicEngine.pause();
+        updatePlayButtonIcon(false);
+    }
+}
+
+// 耐久モードボタン
+function handleEnduranceChange() {
+    // 1. 変数を更新
+    const minutes = parseInt(enduranceSelect.value, 10);
+    currentEnduranceMinutes = minutes;
+
+    // 2. 現在再生中の曲に対して即時反映
+    if (musicEngine && currentSongPath) {
+        const props = songProperties[currentSongPath] || {};
+        // ループ対応曲を再生中なら、エンジンの挙動を更新
+        if (props.isLoopCompatible && props.isLoopTimeLocked) {
+            musicEngine.updateEnduranceMode(currentEnduranceMinutes);
+        }
+    }
+}
+
+// 歌詞の切り替えボタンで言語を切り替える
+function handleLanguageChange(event) {
+    if (event.target.tagName === 'BUTTON') {
+        currentLyricsLang = parseInt(event.target.dataset.lang, 10);
+        lyricsLanguageSelector.querySelectorAll('button').forEach(btn => {
+            btn.classList.toggle('active', parseInt(btn.dataset.lang, 10) === currentLyricsLang);
+        });
+        const newLangName = currentLyricsData.languages[currentLyricsLang].name;
+        applyLanguageStyle(newLangName);
+        if (currentPlayerView === 'full') renderFullLyrics();
+        updateLyricsDisplay();
+    }
+}
+
+// 歌詞の切り替えボタンで画面を切り替える
+function handleViewToggle(event) {
+    if (event.target.tagName === 'BUTTON') {
+        switchLyricsView(event.target.dataset.view);
+    }
+}
+
+// ランダム再生 / 再生予約 ボタン
+function handleRandomButton() {
+    if (!selectedItemPath) {
+        playNextSong();
+        return;
+    }
+    if (isSelectedItemFolder) {
+        activeRandomFolderPath = selectedItemPath;
+        nextSongToPlay = null;
+        playNextSong();
+    } else {
+        const songRecord = findFileByPath(selectedItemPath);
+        if (songRecord) {
+            nextSongToPlay = songRecord;
+            if (musicEngine && musicEngine.getPaused()) playNextSong();
+        }
+    }
+}
+
+// ファイルを選択
+async function handleFileInputChange(event) {
+    const files = Array.from(event.target.files);
+    if (files.length === 0) return;
+    showLoading(`インポート中: 0 / ${files.length}`);
+    try {
+        await db.songs.clear();
+        await db.artworks.clear(); // アートワークもクリア
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            const songRecord = { path: file.webkitRelativePath, file: file };
+            await db.songs.put(songRecord);
+            if ((i + 1) % 10 === 0 || i === files.length - 1) {
+                updateLoadingMessage(`インポート中: ${i + 1} / ${files.length}`);
+            }
+        }
+        await loadDataFromDB();
+    } catch (error) {
+        console.error('Import error:', error);
+    } finally {
+        hideLoading();
+    }
+}
+
+// 設定をインポート
+function handleImport(event) {
+	const file = event.target.files[0];
+	if (!file) return;
+	const reader = new FileReader();
+	reader.onload = async (e) => {
+		try {
+			const importedSettings = JSON.parse(e.target.result);
+			await saveProperties('songProperties', importedSettings);
+			await loadDataFromDB();
+		} catch (error) {
+			console.error('Import error:', error);
+		}
+	};
+	reader.readAsText(file);
+	event.target.value = '';
+}
+
+// 設定をエクスポート
+async function handleExport() {
+	const propsToExport = await getProperties('songProperties');
+	if (!propsToExport || Object.keys(propsToExport).length === 0) return;
+	const settingsJSON = JSON.stringify(propsToExport, null, 2);
+	const blob = new Blob([settingsJSON], { type: 'application/json' });
+	const url = URL.createObjectURL(blob);
+	const a = document.createElement('a');
+	a.href = url;
+	a.download = 'setting.json';
+	document.body.appendChild(a);
+	a.click();
+	document.body.removeChild(a);
+	URL.revokeObjectURL(url);
+}
+
+// アートワークフォルダ再現
 async function handleArtworkFolderRecovery(event) {
     const files = Array.from(event.target.files);
     if (files.length === 0) return;
@@ -855,28 +862,115 @@ async function handleArtworkFolderRecovery(event) {
     }
 }
 
-// =================================================================
-// Core Functions
-// =================================================================
-async function displayArtwork(path, targetImageElement = playerArtwork) {
-    let imageBlob = null;
-    const record = await db.artworks.get(path);
-    if (record) {
-        imageBlob = record.image;
-    } else if (path !== rootPath) {
-        const rootRecord = await db.artworks.get(rootPath);
-        if (rootRecord) {
-            imageBlob = rootRecord.image;
-        }
-    }
+// 詳細設定画面の「設定を保存」ボタン
+async function handleSaveProperties() {
+	if (!selectedItemPath) return;
+	const props = songProperties[selectedItemPath] || {};
+	props.name = propDisplayName.value;
+	props.sortOrder = parseFloat(propSortOrder.value) || 0;
+    props.memo = propMemo.value;
 
-    if (imageBlob) {
-        targetImageElement.src = URL.createObjectURL(imageBlob);
-    } else {
-        targetImageElement.src = '';
-    }
+	if (isSelectedItemFolder) {
+		props.isGame = propIsGame.checked;
+        props.isDerivative = propIsDerivative.checked;
+        if (props.isDerivative) {
+            const parsedMultiplier = parseFloat(propDerivativeMultiplier.value);
+            props.multiplier = !isNaN(parsedMultiplier) ? parsedMultiplier : 1.0;
+        } else {
+            delete props.isDerivative;
+        }
+	} else {
+		const parsedMultiplier = parseFloat(propMultiplier.value);
+		props.multiplier = !isNaN(parsedMultiplier) ? parsedMultiplier : 1.0;
+        
+        props.isLoopCompatible = propLoopCompatible.checked;
+        if (props.isLoopCompatible) {
+            props.isLoopTimeLocked = propLoopTimeLocked.checked;
+            props.loopStartTime = timeStringToSeconds(propLoopStart.value);
+            props.loopEndTime = timeStringToSeconds(propLoopEnd.value);
+        } else {
+            delete props.isLoopTimeLocked;
+            delete props.loopStartTime;
+            delete props.loopEndTime;
+        }
+        
+        props.showLyrics = propLyricsCompatible.checked;
+        if (props.showLyrics) {
+            const langIndex = parseInt(propLyricsCurrentLang.value, 10);
+            saveCurrentLyricsLanguage(props, langIndex);
+            props.lyricsLangCount = parseInt(propLyricsLangCount.value, 10) || 1;
+            
+            const timings = propLyricsTimings.value.split('\n').map(t => parseFloat(t)).filter(t => !isNaN(t));
+            
+            props.lyricsData = timings.map((time, index) => {
+                const existingLineData = (props.lyricsData || [])[index] || { time: 0, lines: [] };
+                return { time: time, lines: existingLineData.lines };
+            });
+        } else {
+            delete props.lyricsLangCount;
+            delete props.lyricsLangNames;
+            delete props.lyricsData;
+        }
+	}
+
+	songProperties[selectedItemPath] = props;
+	await saveProperties('songProperties', songProperties);
+	renderTreeView(getOpenFolders());
 }
 
+// ループに対応 をチェック
+function handleLoopCompatibleChange() {
+    const isChecked = propLoopCompatible.checked;
+    loopLockContainer.classList.toggle('hidden', !isChecked);
+    loopSettingsPanel.classList.toggle('hidden', !isChecked);
+}
+
+// 詳細設定画面の歌詞の表示
+function handleLyricsCompatibleChange() {
+    lyricsSettingsPanel.classList.toggle('hidden', !propLyricsCompatible.checked);
+}
+
+// 詳細設定画面の歌詞の表示言語の切り替え
+function handleLyricsSettingChange() {
+    const props = songProperties[selectedItemPath] || {};
+    if (!props) return;
+    const previousLangIndex = parseInt(propLyricsCurrentLang.dataset.previousValue || '0', 10);
+    saveCurrentLyricsLanguage(props, previousLangIndex);
+    props.lyricsLangCount = parseInt(propLyricsLangCount.value, 10);
+    songProperties[selectedItemPath] = props;
+    showPropertiesPanel(false);
+}
+
+// アートワークをアップロード
+async function handleArtworkUpload(event) {
+    const file = event.target.files[0];
+    if (!file || !selectedItemPath) return;
+
+    await db.artworks.put({ path: selectedItemPath, image: file });
+    const props = songProperties[selectedItemPath] || {};
+    props.hasArtwork = true;
+    props.artworkFileName = file.name;
+    songProperties[selectedItemPath] = props;
+    await saveProperties('songProperties', songProperties);
+    
+    await displayArtwork(selectedItemPath, artworkPreview); // プレビューを更新
+    event.target.value = '';
+}
+
+// アートワークを取り消し
+async function handleArtworkRemove() {
+    if (!selectedItemPath) return;
+
+    await db.artworks.delete(selectedItemPath);
+    const props = songProperties[selectedItemPath] || {};
+    delete props.hasArtwork;
+    songProperties[selectedItemPath] = props;
+    await saveProperties('songProperties', songProperties);
+
+    await displayArtwork(selectedItemPath, artworkPreview); // プレビューを更新（デフォルトに戻る）
+}
+
+// ツリー表示上のどこかをクリック
 function handleTreeClick(event) {
     const liElement = event.target.closest('li');
     if (!liElement) return;
@@ -903,38 +997,118 @@ function handleTreeClick(event) {
     }
 }
 
-function handleFolderSelect(folderElement) {
-    selectedItemPath = folderElement.dataset.folderPath;
-    isSelectedItemFolder = true;
-    updateSelectionStyle(folderElement);
-    showPropertiesPanel();
-}
+// =================================================================
+// 関数
+// =================================================================
 
-function handleSongSelect(songElement, songRecord) {
-    selectedItemPath = songRecord.path;
-    isSelectedItemFolder = false;
-    updateSelectionStyle(songElement);
-    showPropertiesPanel();
-}
+// -----------------------------------------------------------------
+// 次の曲の抽選に関する関数
+// -----------------------------------------------------------------
 
-function handleRandomButton() {
-    if (!selectedItemPath) {
-        playNextSong();
+// 重み付け抽選や履歴除外を行い、次に再生すべき曲（または派生曲）を決定して再生する。
+function playNextSong() {
+    // 1. 再生予約があればそれを優先
+    if (nextSongToPlay) {
+        playSong(nextSongToPlay);
+        nextSongToPlay = null;
         return;
     }
-    if (isSelectedItemFolder) {
-        activeRandomFolderPath = selectedItemPath;
-        nextSongToPlay = null;
-        playNextSong();
-    } else {
-        const songRecord = findFileByPath(selectedItemPath);
-        if (songRecord) {
-            nextSongToPlay = songRecord;
-            if (musicEngine && musicEngine.getPaused()) playNextSong();
+
+    // 2. 再生範囲（フォルダ）の決定
+    if (!activeRandomFolderPath && rootPath) {
+        activeRandomFolderPath = rootPath;
+    }
+    if (!activeRandomFolderPath) return;
+
+    // ★例外対応: もし現在の「再生範囲」自体が派生曲フォルダなら、いきなり内部抽選へ
+    const currentFolderProps = songProperties[activeRandomFolderPath] || {};
+    if (currentFolderProps.isDerivative) {
+        const selectedSong = selectDerivativeSong(activeRandomFolderPath);
+        if (selectedSong) playSong(selectedSong);
+        return;
+    }
+
+    // 3. 候補リストの取得（派生曲フォルダは1アイテムとして混ざっている）
+    const playlist = getPlaylist(activeRandomFolderPath);
+    if (playlist.length === 0) return;
+    
+    // 4. 除外リスト（再生履歴）の準備
+    // 履歴には「曲パス」と「派生フォルダパス」が混ざっているが、文字列比較で除外可能
+    const exclusionCount = Math.floor(Math.min(50, playlist.length / 2));
+    const excludedPaths = recentlyPlayed.slice(0, exclusionCount);
+    
+    // 5. 重み付けリストの作成
+    const weightedList = [];
+    let totalWeight = 0;
+
+    const isEnduranceActive = (currentEnduranceMinutes > 0);
+
+    for (const item of playlist) {
+        // item.path が除外リストにあればスキップ
+        // （派生曲フォルダの場合、フォルダパスが履歴にあるのでここで除外される）
+        if (excludedPaths.includes(item.path)) continue;
+        
+        // 倍率の取得
+        // item.multiplier は getPlaylist でセットしたもの（フォルダの場合）
+        // ファイルの場合は songProperties から取得
+        let multiplier = 1.0;
+        if (item.isFolder) {
+            multiplier = (typeof item.multiplier === 'number') ? item.multiplier : 1.0;
+        } else {
+            const p = songProperties[item.path] || {};
+            const baseMultiplier = (typeof p.multiplier === 'number') ? p.multiplier : 1.0;
+            
+            if (isEnduranceActive) {
+                // 耐久モード有効時
+                if (p.isLoopCompatible) {
+                    multiplier = baseMultiplier * 1.0; // 対応曲はそのまま
+                } else {
+                    multiplier = baseMultiplier * 0.0; // 非対応曲は0倍（除外）
+                }
+            } else {
+                // 耐久モード無効時
+                multiplier = baseMultiplier * 1.0; // 全てそのまま
+            }
         }
+
+        if (multiplier > 0) {
+            weightedList.push({ item: item, weight: multiplier });
+            totalWeight += multiplier;
+        }
+    }
+
+    // 6. 抽選実行
+    let selectedItem = null;
+    if (weightedList.length > 0) {
+        let randomValue = Math.random() * totalWeight;
+        for (const entry of weightedList) {
+            randomValue -= entry.weight;
+            if (randomValue <= 0) {
+                selectedItem = entry.item;
+                break;
+            }
+        }
+    } else if (playlist.length > 0) {
+        // すべて除外されている場合の救済措置（ランダム）
+        const nonExcluded = playlist.filter(i => !excludedPaths.includes(i.path));
+        const targetList = nonExcluded.length > 0 ? nonExcluded : playlist;
+        selectedItem = targetList[Math.floor(Math.random() * targetList.length)];
+    }
+
+    if (!selectedItem) return;
+
+    // 7. 選ばれたアイテムの種類に応じた処理
+    if (selectedItem.isFolder) {
+        // 派生曲フォルダが当たった → その中から1曲選ぶ
+        const song = selectDerivativeSong(selectedItem.path);
+        if (song) playSong(song);
+    } else {
+        // 通常の曲が当たった
+        playSong(selectedItem);
     }
 }
 
+// 指定された曲データの再生を開始し、履歴追加・UI更新・ループ設定・歌詞初期化を行う。
 async function playSong(songRecord) {
 	if (!songRecord) return;
 
@@ -1077,284 +1251,159 @@ async function playSong(songRecord) {
     }
 }
 
-function playNextSong() {
-    // 1. 再生予約があればそれを優先
-    if (nextSongToPlay) {
-        playSong(nextSongToPlay);
-        nextSongToPlay = null;
-        return;
+// 指定されたパス（またはルート/デフォルト）のアートワーク画像をプレイヤー画面に表示する。
+async function displayArtwork(path, targetImageElement = playerArtwork) {
+    let imageBlob = null;
+    const record = await db.artworks.get(path);
+    if (record) {
+        imageBlob = record.image;
+    } else if (path !== rootPath) {
+        const rootRecord = await db.artworks.get(rootPath);
+        if (rootRecord) {
+            imageBlob = rootRecord.image;
+        }
     }
 
-    // 2. 再生範囲（フォルダ）の決定
-    if (!activeRandomFolderPath && rootPath) {
-        activeRandomFolderPath = rootPath;
+    if (imageBlob) {
+        targetImageElement.src = URL.createObjectURL(imageBlob);
+    } else {
+        targetImageElement.src = '';
     }
-    if (!activeRandomFolderPath) return;
+}
 
-    // ★例外対応: もし現在の「再生範囲」自体が派生曲フォルダなら、いきなり内部抽選へ
-    const currentFolderProps = songProperties[activeRandomFolderPath] || {};
-    if (currentFolderProps.isDerivative) {
-        const selectedSong = selectDerivativeSong(activeRandomFolderPath);
-        if (selectedSong) playSong(selectedSong);
-        return;
-    }
-
-    // 3. 候補リストの取得（派生曲フォルダは1アイテムとして混ざっている）
-    const playlist = getPlaylist(activeRandomFolderPath);
-    if (playlist.length === 0) return;
+// 指定フォルダ内の再生可能なリストを作成する（派生曲フォルダは1アイテムとして扱う）。
+function getPlaylist(folderPath) {
+    const root = folderPath || activeRandomFolderPath;
+    if (!root) return [];
     
-    // 4. 除外リスト（再生履歴）の準備
-    // 履歴には「曲パス」と「派生フォルダパス」が混ざっているが、文字列比較で除外可能
-    const exclusionCount = Math.floor(Math.min(50, playlist.length / 2));
-    const excludedPaths = recentlyPlayed.slice(0, exclusionCount);
+    // パスを基にツリー内の探索開始ノードを特定
+    const pathParts = root.split('/');
+    let targetNode = fileTree;
     
-    // 5. 重み付けリストの作成
-    const weightedList = [];
-    let totalWeight = 0;
+    // ルートパス("/") ではない場合、ツリーを降りて対象ノードを探す
+    // ※ fileTreeの構造上、ルートキーから順に辿る必要があるため
+    if (root !== rootPath || (rootPath && rootPath.includes('/'))) {
+        for (const part of pathParts) {
+            targetNode = targetNode ? targetNode[part] : undefined;
+        }
+    } else {
+        // ルートの場合
+        targetNode = fileTree[root] || fileTree;
+    }
 
-    const isEnduranceActive = (currentEnduranceMinutes > 0);
+    if (!targetNode) return [];
 
-    for (const item of playlist) {
-        // item.path が除外リストにあればスキップ
-        // （派生曲フォルダの場合、フォルダパスが履歴にあるのでここで除外される）
-        if (excludedPaths.includes(item.path)) continue;
+    // 探索開始 (再帰関数へ)
+    return traverseForPlaylist(targetNode, root);
+}
+
+// フォルダ構造を再帰的に探索し、再生リストの候補を作成する。
+function traverseForPlaylist(node, currentPath) {
+    let candidates = [];
+
+    for (const key in node) {
+        // "path" や "file" プロパティはツリー構造ではないのでスキップ（ファイルのレコードなど）
+        if (key === 'path' || key === 'file') continue; 
         
-        // 倍率の取得
-        // item.multiplier は getPlaylist でセットしたもの（フォルダの場合）
-        // ファイルの場合は songProperties から取得
-        let multiplier = 1.0;
-        if (item.isFolder) {
-            multiplier = (typeof item.multiplier === 'number') ? item.multiplier : 1.0;
+        const value = node[key];
+        
+        // パスを特定する
+        // ファイルなら自分のパスレコードを持っている。フォルダなら現在のパスにキーを足して構築する。
+        const itemPath = (value.file instanceof File) ? value.path : `${currentPath}/${key}`;
+        
+        if (value.file instanceof File) {
+            // [A] 通常のファイルの場合 -> そのまま候補リストへ
+            candidates.push(value);
         } else {
-            const p = songProperties[item.path] || {};
-            const baseMultiplier = (typeof p.multiplier === 'number') ? p.multiplier : 1.0;
+            // [B] フォルダの場合
+            const props = songProperties[itemPath] || {};
             
-            if (isEnduranceActive) {
-                // 耐久モード有効時
-                if (p.isLoopCompatible) {
-                    multiplier = baseMultiplier * 1.0; // 対応曲はそのまま
-                } else {
-                    multiplier = baseMultiplier * 0.0; // 非対応曲は0倍（除外）
-                }
+            if (props.isDerivative) {
+                // 派生曲フォルダなら、中身を展開せず「1つのアイテム（フォルダ）」として追加
+                candidates.push({ 
+                    path: itemPath, 
+                    isFolder: true, 
+                    // 後の抽選で使うためにここで倍率を取得しておく
+                    multiplier: (typeof props.multiplier === 'number') ? props.multiplier : 1.0 
+                });
             } else {
-                // 耐久モード無効時
-                multiplier = baseMultiplier * 1.0; // 全てそのまま
+                // カテゴリフォルダ（普通のフォルダ）なら、さらに深く探索（再帰）
+                candidates = candidates.concat(traverseForPlaylist(value, itemPath));
             }
         }
-
-        if (multiplier > 0) {
-            weightedList.push({ item: item, weight: multiplier });
-            totalWeight += multiplier;
-        }
     }
+    return candidates;
+}
 
-    // 6. 抽選実行
-    let selectedItem = null;
-    if (weightedList.length > 0) {
-        let randomValue = Math.random() * totalWeight;
-        for (const entry of weightedList) {
-            randomValue -= entry.weight;
-            if (randomValue <= 0) {
-                selectedItem = entry.item;
-                break;
-            }
-        }
-    } else if (playlist.length > 0) {
-        // すべて除外されている場合の救済措置（ランダム）
-        const nonExcluded = playlist.filter(i => !excludedPaths.includes(i.path));
-        const targetList = nonExcluded.length > 0 ? nonExcluded : playlist;
-        selectedItem = targetList[Math.floor(Math.random() * targetList.length)];
-    }
-
-    if (!selectedItem) return;
-
-    // 7. 選ばれたアイテムの種類に応じた処理
-    if (selectedItem.isFolder) {
-        // 派生曲フォルダが当たった → その中から1曲選ぶ
-        const song = selectDerivativeSong(selectedItem.path);
-        if (song) playSong(song);
+// 派生曲フォルダの中から、重み付け抽選に基づいて1曲を選出する。
+function selectDerivativeSong(folderPath) {
+    // 1. 対象フォルダのノードを特定
+    const pathParts = folderPath.split('/');
+    let node = fileTree;
+    
+    // ルート判定（念のため）
+    if (folderPath === rootPath && fileTree[rootPath]) {
+        node = fileTree[rootPath];
     } else {
-        // 通常の曲が当たった
-        playSong(selectedItem);
+        for (const part of pathParts) {
+            node = node ? node[part] : undefined;
+        }
     }
-}
-
-function handleViewToggle(event) {
-    if (event.target.tagName === 'BUTTON') {
-        switchLyricsView(event.target.dataset.view);
-    }
-}
-
-function switchLyricsView(view) {
-    currentPlayerView = view;
-    playerScreen.classList.remove('view-normal', 'view-partial', 'view-full');
-    playerScreen.classList.add(`view-${view}`);
     
-    lyricsViewToggle.querySelectorAll('button').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.view === view);
-    });
+    if (!node) return null;
+    
+    // 2. フォルダ内の全ファイルをフラットに取得
+    // ※ここで既存の getFilesFromNode を利用します（消さずに残しておいてください）
+    const candidates = getFilesFromNode(node);
+    if (candidates.length === 0) return null;
 
-    if (view === 'full') {
-        renderFullLyrics();
-    }
-    updateLyricsDisplay();
-}
+    // 3. 重み付け抽選ロジック
+    let totalWeight = 0;
+    const weightedList = [];
 
-function handleLanguageChange(event) {
-    if (event.target.tagName === 'BUTTON') {
-        currentLyricsLang = parseInt(event.target.dataset.lang, 10);
-        lyricsLanguageSelector.querySelectorAll('button').forEach(btn => {
-            btn.classList.toggle('active', parseInt(btn.dataset.lang, 10) === currentLyricsLang);
-        });
-        const newLangName = currentLyricsData.languages[currentLyricsLang].name;
-        applyLanguageStyle(newLangName);
-        if (currentPlayerView === 'full') renderFullLyrics();
-        updateLyricsDisplay();
-    }
-}
-
-function updateLyricsDisplay() {
-    if (!currentLyricsData || currentPlayerView === 'normal') return;
-
-    let currentTime;
-    if (musicEngine && !isIOS) {
-        currentTime = musicEngine.getCurrentTime();
-    } else {
-        currentTime = audioPlayer.currentTime;
-    }
-    const timings = currentLyricsData.timings;
-    let currentIndex = -1;
-    for (let i = timings.length - 1; i >= 0; i--) {
-        if (currentTime >= timings[i]) {
-            currentIndex = i;
-            break;
+    for (const record of candidates) {
+        const p = songProperties[record.path] || {};
+        const m = (typeof p.multiplier === 'number') ? p.multiplier : 1.0;
+        if (m > 0) {
+            weightedList.push({ record: record, weight: m });
+            totalWeight += m;
         }
     }
 
-    if (currentPlayerView === 'partial') {
-        renderPartialLyrics(currentIndex);
-    } else if (currentPlayerView === 'full') {
-        highlightFullLyrics(currentIndex);
-    }
-}
+    if (weightedList.length === 0) return null;
 
-function renderPartialLyrics(currentIndex) {
-    const lines = currentLyricsData.languages[currentLyricsLang].lines;
-    let content = '';
-    for (let i = -2; i <= 2; i++) {
-        const lineIndex = currentIndex + i;
-        const line = (lineIndex >= 0 && lineIndex < lines.length && lines[lineIndex]) ? lines[lineIndex] : '&nbsp;';
-        const className = (i === 0) ? 'current-lyric' : '';
-        content += `<p class="${className}">${line}</p>`;
-    }
-    partialLyricsDisplay.innerHTML = content;
-}
-
-function renderFullLyrics() {
-    const lines = currentLyricsData.languages[currentLyricsLang].lines;
-    fullLyricsDisplay.innerHTML = lines.map((line, index) => `<p data-line-index="${index}">${line || '&nbsp;'}</p>`).join('');
-}
-
-function highlightFullLyrics(currentIndex) {
-    const currentLineElement = fullLyricsDisplay.querySelector(`p.current-lyric`);
-    if(currentLineElement) currentLineElement.classList.remove('current-lyric');
-
-    if (currentIndex > -1) {
-        const nextLineElement = fullLyricsDisplay.querySelector(`p[data-line-index="${currentIndex}"]`);
-        if (nextLineElement) {
-            nextLineElement.classList.add('current-lyric');
+    let randomValue = Math.random() * totalWeight;
+    for (const item of weightedList) {
+        randomValue -= item.weight;
+        if (randomValue <= 0) {
+            return item.record;
         }
     }
+    // 計算誤差対策で、ループを抜けた場合は最後の曲を返す
+    return weightedList[weightedList.length - 1].record;
 }
 
-function setupLyricsControls(languages) {
-    lyricsLanguageSelector.innerHTML = languages.map((lang, index) => 
-        `<button data-lang="${index}" class="${index === 0 ? 'active' : ''}">${lang.name}</button>`
-    ).join('');
+// -----------------------------------------------------------------
+// ツリー表示に関する関数
+// -----------------------------------------------------------------
+
+// フォルダが選択された際に、選択状態の更新とプロパティパネルの表示を行う。
+function handleFolderSelect(folderElement) {
+    selectedItemPath = folderElement.dataset.folderPath;
+    isSelectedItemFolder = true;
+    updateSelectionStyle(folderElement);
+    showPropertiesPanel();
 }
 
-function saveCurrentLyricsLanguage(props, langIndex) {
-    if (!props.showLyrics) return;
-    
-    props.lyricsLangNames = props.lyricsLangNames || [];
-    props.lyricsData = props.lyricsData || [];
-
-    props.lyricsLangNames[langIndex] = propLyricsLangName.value;
-
-    const allLines = propLyricsText.value.split('\n');
-    const timings = propLyricsTimings.value.split('\n').map(t => parseFloat(t));
-
-    for(let i = 0; i < timings.length; i++){
-        if (!props.lyricsData[i]) props.lyricsData[i] = { time: 0, lines: [] };
-        props.lyricsData[i].time = timings[i] || props.lyricsData[i].time;
-        if (!props.lyricsData[i].lines) props.lyricsData[i].lines = [];
-        props.lyricsData[i].lines[langIndex] = allLines[i] || '';
-    }
-    props.lyricsData.length = timings.length;
+// 曲ファイルが選択された際に、選択状態の更新とプロパティパネルの表示を行う。
+function handleSongSelect(songElement, songRecord) {
+    selectedItemPath = songRecord.path;
+    isSelectedItemFolder = false;
+    updateSelectionStyle(songElement);
+    showPropertiesPanel();
 }
 
-function autoResizeLyricsEditor() {
-    propLyricsTimings.style.height = 'auto';
-    propLyricsText.style.height = 'auto';
-
-    const scrollHeightTimings = propLyricsTimings.scrollHeight;
-    const scrollHeightText = propLyricsText.scrollHeight;
-    
-    const maxHeight = Math.max(scrollHeightTimings, scrollHeightText);
-
-    propLyricsTimings.style.height = maxHeight + 'px';
-    propLyricsText.style.height = maxHeight + 'px';
-}
-
-
-// =================================================================
-// Helper Functions
-// =================================================================
-function switchScreen(screenName) {
-    [playerScreen, listScreen, settingsScreen].forEach(s => s.classList.remove('active'));
-    [navPlayerButton, navListButton, navSettingsButton].forEach(b => b.classList.remove('active'));
-    if (screenName === 'player') {
-        playerScreen.classList.add('active');
-        navPlayerButton.classList.add('active');
-    } else if (screenName === 'list') {
-        listScreen.classList.add('active');
-        navListButton.classList.add('active');
-    } else if (screenName === 'settings') {
-        settingsScreen.classList.add('active');
-        navSettingsButton.classList.add('active');
-    }
-}
-
-function switchSettingsView(viewName) {
-    if (viewName === 'detail') {
-        mainSettingsView.classList.remove('active');
-        detailSettingsView.classList.add('active');
-    } else {
-        detailSettingsView.classList.remove('active');
-        mainSettingsView.classList.add('active');
-    }
-}
-
-function updateSeekbarVisuals() {
-    if (!customSeekbar) return;
-    const val = parseFloat(customSeekbar.value) || 0;
-    const max = parseFloat(customSeekbar.max) || 100;
-    const ratio = (max > 0) ? (val / max) * 100 : 0;
-    
-    // linear-gradientで「左からratio%まで紫、そこから右はグレー」にする
-    // 線の太さは background-size の第2引数(4px)で指定
-    customSeekbar.style.background = `linear-gradient(to right, #7e57c2 ${ratio}%, #555 ${ratio}%)`;
-    customSeekbar.style.backgroundSize = `100% 6px`;
-    customSeekbar.style.backgroundRepeat = `no-repeat`;
-    customSeekbar.style.backgroundPosition = `center`;
-}
-
-function updatePlayButtonIcon(isPlaying) {
-    // isPlayingが true (再生中) なら一時停止ボタン(❚❚)を表示
-    // false (停止中) なら再生ボタン(▶)を表示
-    ctrlPlayPauseButton.textContent = isPlaying ? '❚❚' : '▶';
-}
-
+// ファイルツリーのHTMLを再生成し、一覧画面と設定画面の両方に描画する（開閉状態を維持）。
 function renderTreeView(pathsToKeepOpen = null) {
     const treeHTML = createTreeViewHTML(fileTree);
     listTreeViewContainer.innerHTML = '';
@@ -1380,6 +1429,7 @@ function renderTreeView(pathsToKeepOpen = null) {
     applyState(settingsTreeViewContainer);
 }
 
+// 再帰的にファイルツリー構造を解析し、<ul> <li> 要素によるHTMLを生成する。
 function createTreeViewHTML(node, currentPath = '') {
     const ul = document.createElement('ul');
     const items = Object.keys(node).map(key => {
@@ -1425,6 +1475,274 @@ function createTreeViewHTML(node, currentPath = '') {
     return ul;
 }
 
+// ツリー表示上で、現在選択されているアイテムのハイライト表示を更新する。
+function updateSelectionStyle(selectedElement) {
+    document.querySelectorAll('.selected-item').forEach(el => el.classList.remove('selected-item'));
+    if (selectedElement) {
+        const path = selectedElement.dataset.folderPath || selectedElement.dataset.filePath;
+        document.querySelectorAll(`li[data-folder-path="${path}"], li[data-file-path="${path}"]`).forEach(el => {
+            el.classList.add('selected-item');
+        });
+    }
+}
+
+// 現在ツリー表示上で開かれている（展開されている）フォルダのパス一覧を取得する。
+function getOpenFolders() {
+    const openFolders = new Set();
+    document.querySelectorAll('.tree-view .folder-item.open').forEach(folder => {
+        openFolders.add(folder.dataset.folderPath);
+    });
+    return openFolders;
+}
+
+// -----------------------------------------------------------------
+// データ構造・検索に関する関数
+// -----------------------------------------------------------------
+
+// IndexedDBから曲データと設定を読み込み、アプリの状態を初期化する。
+async function loadDataFromDB() {
+    try {
+        showLoading('ライブラリを読み込み中...');
+        const songData = await getAllSongs();
+        const props = await getProperties('songProperties');
+        const recent = await getProperties('recentlyPlayed');
+        
+        if (songData && songData.length > 0) {
+            libraryFiles = songData;
+            songProperties = props || {};
+            recentlyPlayed = recent || [];
+            
+            fileTree = buildFileTree(libraryFiles);
+            rootPath = Object.keys(fileTree)[0] || null;
+
+            if(rootPath && !songProperties[rootPath]){
+                songProperties[rootPath] = {};
+            }
+            if(rootPath){
+                songProperties[rootPath].isGame = true; // ルートは常にGameフォルダ
+            }
+
+            if (!activeRandomFolderPath) {
+                activeRandomFolderPath = rootPath;
+            }
+            renderTreeView();
+        } else {
+            libraryFiles = [];
+            fileTree = {};
+            songProperties = {};
+            renderTreeView();
+        }
+    } catch (error) {
+        console.error('Failed to load data from DB:', error);
+    } finally {
+        hideLoading();
+    }
+}
+
+// フラットなファイルリストを解析し、階層構造を持つツリーオブジェクトに変換する。
+function buildFileTree(records) {
+    const tree = {};
+    for (const record of records) {
+        if (!record.path) continue;
+        const pathParts = record.path.split('/');
+        let currentLevel = tree;
+        for (let i = 0; i < pathParts.length; i++) {
+            const part = pathParts[i];
+            if (i < pathParts.length - 1) {
+                if (!currentLevel[part]) currentLevel[part] = {};
+                currentLevel = currentLevel[part];
+            } else {
+                currentLevel[part] = record;
+            }
+        }
+    }
+    return tree;
+}
+
+// 指定されたツリーノード以下のすべてのファイルレコードを再帰的に取得する。
+function getFilesFromNode(node) {
+    let files = [];
+    for (const key in node) {
+        const value = node[key];
+        if (value.file instanceof File) {
+            files.push(value);
+        } else {
+            files = files.concat(getFilesFromNode(value));
+        }
+    }
+    return files;
+}
+
+// ファイルパスをキーにして、ライブラリから該当する曲レコードを検索する。
+function findFileByPath(filePath) {
+    return libraryFiles.find(record => record.path === filePath) || null;
+}
+
+// -----------------------------------------------------------------
+// シークバー・オーディオ操作ボタンに関する関数
+// -----------------------------------------------------------------
+
+// シークバー（プログレスバー）の進捗に応じた背景色のグラデーションを更新する。
+function updateSeekbarVisuals() {
+    if (!customSeekbar) return;
+    const val = parseFloat(customSeekbar.value) || 0;
+    const max = parseFloat(customSeekbar.max) || 100;
+    const ratio = (max > 0) ? (val / max) * 100 : 0;
+    
+    // linear-gradientで「左からratio%まで紫、そこから右はグレー」にする
+    // 線の太さは background-size の第2引数(4px)で指定
+    customSeekbar.style.background = `linear-gradient(to right, #7e57c2 ${ratio}%, #555 ${ratio}%)`;
+    customSeekbar.style.backgroundSize = `100% 6px`;
+    customSeekbar.style.backgroundRepeat = `no-repeat`;
+    customSeekbar.style.backgroundPosition = `center`;
+}
+
+// 再生位置を5秒間巻き戻す（MediaSession API用）。
+function rewindFiveSeconds() {
+    if (audioPlayer) {
+        audioPlayer.currentTime = Math.max(audioPlayer.currentTime - 5, 0);
+    }
+}
+
+// 再生状態に応じて、再生ボタンのアイコンを「▶」または「❚❚」に切り替える。
+function updatePlayButtonIcon(isPlaying) {
+    // isPlayingが true (再生中) なら一時停止ボタン(❚❚)を表示
+    // false (停止中) なら再生ボタン(▶)を表示
+    ctrlPlayPauseButton.textContent = isPlaying ? '❚❚' : '▶';
+}
+
+// -----------------------------------------------------------------
+// 耐久モード・再生時間の表示に関する関数
+// -----------------------------------------------------------------
+
+// 秒数を「MM:SS」形式の文字列に変換する。
+function formatTime(totalSeconds) {
+    if (totalSeconds == null || isNaN(totalSeconds) || totalSeconds < 0) return "";
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = Math.floor(totalSeconds % 60);
+    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+// 「MM:SS.mmm」形式の文字列を秒数（数値）に変換する。
+function timeStringToSeconds(timeString) {
+    if (!timeString || typeof timeString !== 'string') return 0;
+    const parts = timeString.match(/(\d+):(\d+).(\d+)/);
+    if (!parts) return 0;
+    const [, minutes, seconds, milliseconds] = parts.map(Number);
+    return minutes * 60 + seconds + milliseconds / 1000;
+}
+
+// 秒数を「MM:SS.mmm」形式の文字列に変換する（詳細設定用）。
+function formatTimeWithMillis(totalSeconds) {
+    if (totalSeconds == null || isNaN(totalSeconds) || totalSeconds < 0) return "";
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = Math.floor(totalSeconds % 60);
+    const milliseconds = Math.round((totalSeconds % 1) * 1000);
+    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(milliseconds).padStart(3, '0')}`;
+}
+
+// 指定された耐久時間（分）を満たすために必要なループ回数を計算する。
+function calculateTargetLoopCount(minutes, loopStart, loopEnd, totalDuration) {
+    if (minutes <= 0 || loopEnd <= loopStart) return 1;
+    const intro = loopStart;
+    const loopPart = loopEnd - loopStart;
+    const outro = totalDuration - loopEnd;
+    const requiredLoopTime = (minutes * 60) - intro - outro;
+    if (requiredLoopTime <= 0) return 1;
+    return Math.ceil(requiredLoopTime / loopPart);
+}
+
+// -----------------------------------------------------------------
+// 歌詞に関する関数
+// -----------------------------------------------------------------
+
+// 現在の再生時間に基づいて、歌詞（一部表示または全文表示のハイライト）を更新する。
+function updateLyricsDisplay() {
+    if (!currentLyricsData || currentPlayerView === 'normal') return;
+
+    let currentTime;
+    if (musicEngine && !isIOS) {
+        currentTime = musicEngine.getCurrentTime();
+    } else {
+        currentTime = audioPlayer.currentTime;
+    }
+    const timings = currentLyricsData.timings;
+    let currentIndex = -1;
+    for (let i = timings.length - 1; i >= 0; i--) {
+        if (currentTime >= timings[i]) {
+            currentIndex = i;
+            break;
+        }
+    }
+
+    if (currentPlayerView === 'partial') {
+        renderPartialLyrics(currentIndex);
+    } else if (currentPlayerView === 'full') {
+        highlightFullLyrics(currentIndex);
+    }
+}
+
+// 現在の行とその前後を表示する「歌詞の一部表示（カラオケ風）」のHTMLを生成する。
+function renderPartialLyrics(currentIndex) {
+    const lines = currentLyricsData.languages[currentLyricsLang].lines;
+    let content = '';
+    for (let i = -2; i <= 2; i++) {
+        const lineIndex = currentIndex + i;
+        const line = (lineIndex >= 0 && lineIndex < lines.length && lines[lineIndex]) ? lines[lineIndex] : '&nbsp;';
+        const className = (i === 0) ? 'current-lyric' : '';
+        content += `<p class="${className}">${line}</p>`;
+    }
+    partialLyricsDisplay.innerHTML = content;
+}
+
+// 「歌詞の全文表示」用に、すべての行を含むHTMLを生成して表示する。
+function renderFullLyrics() {
+    const lines = currentLyricsData.languages[currentLyricsLang].lines;
+    fullLyricsDisplay.innerHTML = lines.map((line, index) => `<p data-line-index="${index}">${line || '&nbsp;'}</p>`).join('');
+}
+
+// 全文表示モードにおいて、現在再生中の行にハイライト用クラスを付与する。
+function highlightFullLyrics(currentIndex) {
+    const currentLineElement = fullLyricsDisplay.querySelector(`p.current-lyric`);
+    if(currentLineElement) currentLineElement.classList.remove('current-lyric');
+
+    if (currentIndex > -1) {
+        const nextLineElement = fullLyricsDisplay.querySelector(`p[data-line-index="${currentIndex}"]`);
+        if (nextLineElement) {
+            nextLineElement.classList.add('current-lyric');
+        }
+    }
+}
+
+// 歌詞データに含まれる言語数に基づいて、言語切り替えボタンを生成する。
+function setupLyricsControls(languages) {
+    lyricsLanguageSelector.innerHTML = languages.map((lang, index) => 
+        `<button data-lang="${index}" class="${index === 0 ? 'active' : ''}">${lang.name}</button>`
+    ).join('');
+}
+
+// 言語名に応じて特定のフォントやスタイル（例：新世界語フォント）を適用する。
+function applyLanguageStyle(langName) {
+    const isNewWorld = (langName === '新世界語');
+    
+    // 部分表示と全文表示の両方のコンテナを取得
+    const partialContainer = document.getElementById('partial-lyrics-display');
+    const fullContainer = document.getElementById('full-lyrics-display');
+
+    if (isNewWorld) {
+        partialContainer.classList.add('lang-newworld');
+        fullContainer.classList.add('lang-newworld');
+    } else {
+        partialContainer.classList.remove('lang-newworld');
+        fullContainer.classList.remove('lang-newworld');
+    }
+}
+
+// -----------------------------------------------------------------
+// 詳細設定に関する関数
+// -----------------------------------------------------------------
+
+// 選択中のアイテム（曲またはフォルダ）の詳細情報を設定画面のパネルに表示する。
 async function showPropertiesPanel(resetData = true) {
     if (!selectedItemPath || !detailSettingsView.classList.contains('active')) {
         propertiesPanel.style.display = 'none';
@@ -1503,237 +1821,119 @@ async function showPropertiesPanel(resetData = true) {
     propertiesPanel.style.display = 'block';
 }
 
-function updateSelectionStyle(selectedElement) {
-    document.querySelectorAll('.selected-item').forEach(el => el.classList.remove('selected-item'));
-    if (selectedElement) {
-        const path = selectedElement.dataset.folderPath || selectedElement.dataset.filePath;
-        document.querySelectorAll(`li[data-folder-path="${path}"], li[data-file-path="${path}"]`).forEach(el => {
-            el.classList.add('selected-item');
-        });
+// 詳細設定画面で編集中の歌詞データを、メモリ上のプロパティオブジェクトに保存する。
+function saveCurrentLyricsLanguage(props, langIndex) {
+    if (!props.showLyrics) return;
+    
+    props.lyricsLangNames = props.lyricsLangNames || [];
+    props.lyricsData = props.lyricsData || [];
+
+    props.lyricsLangNames[langIndex] = propLyricsLangName.value;
+
+    const allLines = propLyricsText.value.split('\n');
+    const timings = propLyricsTimings.value.split('\n').map(t => parseFloat(t));
+
+    for(let i = 0; i < timings.length; i++){
+        if (!props.lyricsData[i]) props.lyricsData[i] = { time: 0, lines: [] };
+        props.lyricsData[i].time = timings[i] || props.lyricsData[i].time;
+        if (!props.lyricsData[i].lines) props.lyricsData[i].lines = [];
+        props.lyricsData[i].lines[langIndex] = allLines[i] || '';
+    }
+    props.lyricsData.length = timings.length;
+}
+
+// 詳細設定画面の歌詞入力欄（時間・テキスト）の高さを、内容に合わせて自動調整する。
+function autoResizeLyricsEditor() {
+    propLyricsTimings.style.height = 'auto';
+    propLyricsText.style.height = 'auto';
+
+    const scrollHeightTimings = propLyricsTimings.scrollHeight;
+    const scrollHeightText = propLyricsText.scrollHeight;
+    
+    const maxHeight = Math.max(scrollHeightTimings, scrollHeightText);
+
+    propLyricsTimings.style.height = maxHeight + 'px';
+    propLyricsText.style.height = maxHeight + 'px';
+}
+
+// テキストエリアの内容量に応じて、要素の高さを自動的に調整する。
+function autoResizeTextarea(element) {
+    element.style.height = 'auto'; // 一旦高さをリセット
+    element.style.height = element.scrollHeight + 'px'; // 内容に合わせて高さを設定
+}
+
+// -----------------------------------------------------------------
+// 画面切り替えに関する関数
+// -----------------------------------------------------------------
+
+// プレイヤー画面のCSSクラスを切り替え、歌詞の表示レイアウト（通常・一部・全文）を変更する。
+function switchLyricsView(view) {
+    currentPlayerView = view;
+    playerScreen.classList.remove('view-normal', 'view-partial', 'view-full');
+    playerScreen.classList.add(`view-${view}`);
+    
+    lyricsViewToggle.querySelectorAll('button').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.view === view);
+    });
+
+    if (view === 'full') {
+        renderFullLyrics();
+    }
+    updateLyricsDisplay();
+}
+
+// プレイヤー・一覧・設定の3つのメイン画面の表示/非表示を切り替える。
+function switchScreen(screenName) {
+    [playerScreen, listScreen, settingsScreen].forEach(s => s.classList.remove('active'));
+    [navPlayerButton, navListButton, navSettingsButton].forEach(b => b.classList.remove('active'));
+    if (screenName === 'player') {
+        playerScreen.classList.add('active');
+        navPlayerButton.classList.add('active');
+    } else if (screenName === 'list') {
+        listScreen.classList.add('active');
+        navListButton.classList.add('active');
+    } else if (screenName === 'settings') {
+        settingsScreen.classList.add('active');
+        navSettingsButton.classList.add('active');
     }
 }
 
-async function loadDataFromDB() {
-    try {
-        showLoading('ライブラリを読み込み中...');
-        const songData = await getAllSongs();
-        const props = await getProperties('songProperties');
-        const recent = await getProperties('recentlyPlayed');
-        
-        if (songData && songData.length > 0) {
-            libraryFiles = songData;
-            songProperties = props || {};
-            recentlyPlayed = recent || [];
-            
-            fileTree = buildFileTree(libraryFiles);
-            rootPath = Object.keys(fileTree)[0] || null;
-
-            if(rootPath && !songProperties[rootPath]){
-                songProperties[rootPath] = {};
-            }
-            if(rootPath){
-                songProperties[rootPath].isGame = true; // ルートは常にGameフォルダ
-            }
-
-            if (!activeRandomFolderPath) {
-                activeRandomFolderPath = rootPath;
-            }
-            renderTreeView();
-        } else {
-            libraryFiles = [];
-            fileTree = {};
-            songProperties = {};
-            renderTreeView();
-        }
-    } catch (error) {
-        console.error('Failed to load data from DB:', error);
-    } finally {
-        hideLoading();
-    }
-}
-
-// ▼▼▼ 変更: 再生リスト取得ロジック（派生曲フォルダ対応版） ▼▼▼
-function getPlaylist(folderPath) {
-    const root = folderPath || activeRandomFolderPath;
-    if (!root) return [];
-    
-    // パスを基にツリー内の探索開始ノードを特定
-    const pathParts = root.split('/');
-    let targetNode = fileTree;
-    
-    // ルートパス("/") ではない場合、ツリーを降りて対象ノードを探す
-    // ※ fileTreeの構造上、ルートキーから順に辿る必要があるため
-    if (root !== rootPath || (rootPath && rootPath.includes('/'))) {
-        for (const part of pathParts) {
-            targetNode = targetNode ? targetNode[part] : undefined;
-        }
+// 設定画面内で、メイン設定と詳細設定のビューを切り替える。
+function switchSettingsView(viewName) {
+    if (viewName === 'detail') {
+        mainSettingsView.classList.remove('active');
+        detailSettingsView.classList.add('active');
     } else {
-        // ルートの場合
-        targetNode = fileTree[root] || fileTree;
+        detailSettingsView.classList.remove('active');
+        mainSettingsView.classList.add('active');
     }
-
-    if (!targetNode) return [];
-
-    // 探索開始 (再帰関数へ)
-    return traverseForPlaylist(targetNode, root);
 }
 
-// ▼▼▼ 追加: 再生リスト作成用の再帰探索関数 ▼▼▼
-function traverseForPlaylist(node, currentPath) {
-    let candidates = [];
+// -----------------------------------------------------------------
+// ローディングオーバーレイに関する関数
+// -----------------------------------------------------------------
 
-    for (const key in node) {
-        // "path" や "file" プロパティはツリー構造ではないのでスキップ（ファイルのレコードなど）
-        if (key === 'path' || key === 'file') continue; 
-        
-        const value = node[key];
-        
-        // パスを特定する
-        // ファイルなら自分のパスレコードを持っている。フォルダなら現在のパスにキーを足して構築する。
-        const itemPath = (value.file instanceof File) ? value.path : `${currentPath}/${key}`;
-        
-        if (value.file instanceof File) {
-            // [A] 通常のファイルの場合 -> そのまま候補リストへ
-            candidates.push(value);
-        } else {
-            // [B] フォルダの場合
-            const props = songProperties[itemPath] || {};
-            
-            if (props.isDerivative) {
-                // 派生曲フォルダなら、中身を展開せず「1つのアイテム（フォルダ）」として追加
-                candidates.push({ 
-                    path: itemPath, 
-                    isFolder: true, 
-                    // 後の抽選で使うためにここで倍率を取得しておく
-                    multiplier: (typeof props.multiplier === 'number') ? props.multiplier : 1.0 
-                });
-            } else {
-                // カテゴリフォルダ（普通のフォルダ）なら、さらに深く探索（再帰）
-                candidates = candidates.concat(traverseForPlaylist(value, itemPath));
-            }
-        }
-    }
-    return candidates;
-}
-
-// ▼▼▼ 追加: 派生曲フォルダ内での抽選関数 ▼▼▼
-function selectDerivativeSong(folderPath) {
-    // 1. 対象フォルダのノードを特定
-    const pathParts = folderPath.split('/');
-    let node = fileTree;
-    
-    // ルート判定（念のため）
-    if (folderPath === rootPath && fileTree[rootPath]) {
-        node = fileTree[rootPath];
-    } else {
-        for (const part of pathParts) {
-            node = node ? node[part] : undefined;
-        }
-    }
-    
-    if (!node) return null;
-    
-    // 2. フォルダ内の全ファイルをフラットに取得
-    // ※ここで既存の getFilesFromNode を利用します（消さずに残しておいてください）
-    const candidates = getFilesFromNode(node);
-    if (candidates.length === 0) return null;
-
-    // 3. 重み付け抽選ロジック
-    let totalWeight = 0;
-    const weightedList = [];
-
-    for (const record of candidates) {
-        const p = songProperties[record.path] || {};
-        const m = (typeof p.multiplier === 'number') ? p.multiplier : 1.0;
-        if (m > 0) {
-            weightedList.push({ record: record, weight: m });
-            totalWeight += m;
-        }
-    }
-
-    if (weightedList.length === 0) return null;
-
-    let randomValue = Math.random() * totalWeight;
-    for (const item of weightedList) {
-        randomValue -= item.weight;
-        if (randomValue <= 0) {
-            return item.record;
-        }
-    }
-    // 計算誤差対策で、ループを抜けた場合は最後の曲を返す
-    return weightedList[weightedList.length - 1].record;
-}
-
-function getFilesFromNode(node) {
-    let files = [];
-    for (const key in node) {
-        const value = node[key];
-        if (value.file instanceof File) {
-            files.push(value);
-        } else {
-            files = files.concat(getFilesFromNode(value));
-        }
-    }
-    return files;
-}
-
-function findFileByPath(filePath) {
-    return libraryFiles.find(record => record.path === filePath) || null;
-}
-
-function buildFileTree(records) {
-    const tree = {};
-    for (const record of records) {
-        if (!record.path) continue;
-        const pathParts = record.path.split('/');
-        let currentLevel = tree;
-        for (let i = 0; i < pathParts.length; i++) {
-            const part = pathParts[i];
-            if (i < pathParts.length - 1) {
-                if (!currentLevel[part]) currentLevel[part] = {};
-                currentLevel = currentLevel[part];
-            } else {
-                currentLevel[part] = record;
-            }
-        }
-    }
-    return tree;
-}
-
+// 画面全体を覆うローディングオーバーレイを表示し、メッセージを設定する。
 function showLoading(message) {
 	loadingOverlay.querySelector('div').textContent = message;
 	loadingOverlay.style.display = 'flex';
 }
+
+// 表示中のローディングオーバーレイのメッセージテキストを更新する。
 function updateLoadingMessage(message) {
 	loadingOverlay.querySelector('div').textContent = message;
 }
+
+// ローディングオーバーレイを非表示にする。
 function hideLoading() {
 	loadingOverlay.style.display = 'none';
 }
 
-function getOpenFolders() {
-    const openFolders = new Set();
-    document.querySelectorAll('.tree-view .folder-item.open').forEach(folder => {
-        openFolders.add(folder.dataset.folderPath);
-    });
-    return openFolders;
-}
+// -----------------------------------------------------------------
+// スマホ版のメディアコントロールに関する関数
+// -----------------------------------------------------------------
 
-function formatTime(totalSeconds) {
-    if (totalSeconds == null || isNaN(totalSeconds) || totalSeconds < 0) return "";
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = Math.floor(totalSeconds % 60);
-    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-}
-
-function timeStringToSeconds(timeString) {
-    if (!timeString || typeof timeString !== 'string') return 0;
-    const parts = timeString.match(/(\d+):(\d+).(\d+)/);
-    if (!parts) return 0;
-    const [, minutes, seconds, milliseconds] = parts.map(Number);
-    return minutes * 60 + seconds + milliseconds / 1000;
-}
-
+// OS側のメディアコントロール（ロック画面等）に現在の再生位置情報を通知する。
 function updateMediaPosition(currentTime, duration) {
     if ('mediaSession' in navigator && navigator.mediaSession.metadata) {
         // 引数がなければaudioPlayerから取る（後方互換）
@@ -1746,43 +1946,4 @@ function updateMediaPosition(currentTime, duration) {
             position: cTime || 0,
         });
     }
-}
-
-function applyLanguageStyle(langName) {
-    const isNewWorld = (langName === '新世界語');
-    
-    // 部分表示と全文表示の両方のコンテナを取得
-    const partialContainer = document.getElementById('partial-lyrics-display');
-    const fullContainer = document.getElementById('full-lyrics-display');
-
-    if (isNewWorld) {
-        partialContainer.classList.add('lang-newworld');
-        fullContainer.classList.add('lang-newworld');
-    } else {
-        partialContainer.classList.remove('lang-newworld');
-        fullContainer.classList.remove('lang-newworld');
-    }
-}
-
-function autoResizeTextarea(element) {
-    element.style.height = 'auto'; // 一旦高さをリセット
-    element.style.height = element.scrollHeight + 'px'; // 内容に合わせて高さを設定
-}
-
-function formatTimeWithMillis(totalSeconds) {
-    if (totalSeconds == null || isNaN(totalSeconds) || totalSeconds < 0) return "";
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = Math.floor(totalSeconds % 60);
-    const milliseconds = Math.round((totalSeconds % 1) * 1000);
-    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(milliseconds).padStart(3, '0')}`;
-}
-
-function calculateTargetLoopCount(minutes, loopStart, loopEnd, totalDuration) {
-    if (minutes <= 0 || loopEnd <= loopStart) return 1;
-    const intro = loopStart;
-    const loopPart = loopEnd - loopStart;
-    const outro = totalDuration - loopEnd;
-    const requiredLoopTime = (minutes * 60) - intro - outro;
-    if (requiredLoopTime <= 0) return 1;
-    return Math.ceil(requiredLoopTime / loopPart);
 }

@@ -11,17 +11,20 @@
 </head>
 <body>
     <main id="app-container">
-
+        <!-- プレイヤー画面 -->
         <div id="player-screen" class="screen active view-normal">
+            <!-- 画面中央部 -->
             <div id="player-main-ui">
                 <div class="player-content">
                     <div id="player-folder-name-container" class="player-info-text">
                         <span class="folder-label">現在選択中のフォルダ:</span>
                         <span id="player-folder-name">フォルダ名</span>
                     </div>
+                    <!-- アートワーク -->
                     <div class="artwork-container">
                         <img id="player-artwork" src="" alt="Artwork">
                     </div>
+                    <!-- カスタムシークバー -->
                     <audio id="audioPlayer" class="hidden"></audio>
                     <div id="custom-seekbar-container">
                         <div class="time-display">
@@ -32,21 +35,25 @@
                     </div>
                     <div id="player-song-name" class="player-info-text song-title">曲名</div>
                     <div id="player-game-name" class="player-info-text game-title">ゲーム名</div>
-                    
+                    <!-- オーディオ操作ボタン -->
                     <div id="player-manual-controls">
                         <button id="ctrl-prev-button" class="control-btn">↺ -5s</button>
                         <button id="ctrl-play-pause-button" class="control-btn play-btn">▶</button>
                         <button id="ctrl-next-button" class="control-btn">Next >></button>
                     </div>
-
+                    <!-- 歌詞のウィンドウ -->
                     <div id="lyrics-display-container" class="hidden">
+                        <!-- 歌詞の一部表示 -->
                         <div id="partial-lyrics-display" class="lyrics-view lyrics-panel"></div>
+                        <!-- 歌詞の全文表示 -->
                         <div id="full-lyrics-display" class="lyrics-view scrollable-content lyrics-panel"></div>
                     </div>
                 </div>
             </div>
 
+            <!-- 画面下部 -->
             <div id="bottom-controls-container">
+                <!-- 耐久モードボタン -->
                 <div id="endurance-menu-container" class="hidden">
                     <select id="endurance-select">
                         <option value="0">ループなし</option>
@@ -58,6 +65,7 @@
                     </select>
                 </div>
 
+                <!-- 歌詞の切り替えボタン -->
                 <div id="lyrics-controls-container" class="hidden">
                     <div id="lyrics-controls">
                         <div id="lyrics-language-selector" class="language-selector"></div>
@@ -71,13 +79,17 @@
             </div>
         </div>
 
+        <!-- 一覧画面 -->
         <div id="list-screen" class="screen">
+            <!-- ツリー表示 -->
             <div id="list-tree-view-container" class="scrollable-content tree-view"></div>
+            <!-- ランダム再生 / 再生予約 ボタン -->
             <div class="fixed-bottom-button-container">
                 <button id="list-random-button">ランダム再生 / 再生予約</button>
             </div>
         </div>
 
+        <!-- 全般設定画面 -->
         <div id="settings-screen" class="screen">
             <div id="main-settings" class="settings-view active">
                 <div class="settings-button-group">
@@ -92,26 +104,33 @@
                     <button id="goto-detail-settings-button" class="settings-button detail-button">詳細設定</button>
                 </div>
             </div>
+
+            <!-- 詳細設定画面 -->
             <div id="detail-settings" class="settings-view">
+                <!-- 上画面（ツリー表示） -->
                 <div id="settings-tree-view-container" class="scrollable-content split-top tree-view"></div>
+                <!-- 下画面 -->
                 <div id="properties-panel" class="split-bottom">
+                    <!-- フォルダ・ファイル共通 -->
                     <button id="back-to-main-settings-button">戻る</button>
                     <h4>詳細設定</h4>
                     <p>対象: <span id="prop-item-name"></span></p>
                     <div class="prop-details"><label>表示名(Name): <input type="text" id="prop-display-name"></label></div>
                     <div class="prop-details"><label>並び替え順: <input type="number" id="prop-sort-order" step="0.01" value="0"></label></div>
+                    <!-- 曲ファイルのみ -->
                     <div id="song-specific-settings">
                         <div class="prop-details"><label>抽選倍率: <input type="number" id="prop-lottery-multiplier" min="0" step="0.0001" value="1.0"></label></div>
+                        <!-- ループに対応 -->
                         <div id="loop-feature-container">
                             <div class="prop-details"><label><input type="checkbox" id="prop-loop-compatible"> ループに対応</label></div>
-                            <div id="loop-lock-container" class="hidden"><div class="prop-details"><label><input type="checkbox" id="prop-loop-time-locked"> ループ時間を固定</label></div></div>
                             <div id="loop-settings-panel" class="hidden">
-                                <div class="prop-details"><label>ループ開始時間: <input type="text" id="prop-loop-start" placeholder="mm:ss.sss"></label></div>
+                                <div id="loop-lock-container" class="hidden"><div class="prop-details"><label><input type="checkbox" id="prop-loop-time-locked"> ループ時間を固定</label></div></div><div class="prop-details"><label>ループ開始時間: <input type="text" id="prop-loop-start" placeholder="mm:ss.sss"></label></div>
                                 <div class="prop-details"><label>ループ終了時間: <input type="text" id="prop-loop-end" placeholder="mm:ss.sss"></label></div>
                                 <div class="prop-details readonly"><span>自動計算(開始): <span id="prop-loop-start-auto">--:--.---</span></span></div>
                                 <div class="prop-details readonly"><span>自動計算(終了): <span id="prop-loop-end-auto">--:--.---</span></span></div>
                             </div>
                         </div>
+                        <!-- 歌詞の表示 -->
                         <div id="lyrics-feature-container">
                             <div class="prop-details"><label><input type="checkbox" id="prop-lyrics-compatible"> 歌詞の表示</label></div>
                             <div id="lyrics-settings-panel" class="hidden">
@@ -125,8 +144,17 @@
                             </div>
                         </div>
                     </div>
+                    <!-- フォルダのみ（カテゴリフォルダ、派生曲所有フォルダ） -->
                     <div id="folder-specific-settings">
                         <div class="prop-details"><label><input type="checkbox" id="prop-is-game"> Gameフォルダとしてマーク</label></div>
+                        <div id="artwork-management-ui" class="hidden">
+                            <p>アートワーク設定:</p>
+                            <img id="artwork-preview" src="" alt="Artwork Preview" style="max-width: 100px; max-height: 100px; display: block; margin-bottom: 10px;">
+                            <label for="artwork-upload-input" class="settings-button" style="font-size: 0.9em; padding: 8px 16px;">画像をアップロード</label>
+                            <input type="file" id="artwork-upload-input" accept="image/*">
+                            <button id="artwork-remove-button" style="font-size: 0.9em; padding: 8px 16px; background-color: #555;">画像を取り消し</button>
+                        </div>
+                        <!-- 派生曲所有フォルダ -->
                         <div class="prop-details">
                             <label><input type="checkbox" id="prop-is-derivative"> 派生曲を持つ</label>
                         </div>
@@ -135,25 +163,21 @@
                                 <label>抽選倍率: <input type="number" id="prop-derivative-multiplier" min="0" step="0.0001" value="1.0"></label>
                             </div>
                         </div>
-                        <div id="artwork-management-ui" class="hidden">
-                            <p>アートワーク設定:</p>
-                            <img id="artwork-preview" src="" alt="Artwork Preview" style="max-width: 100px; max-height: 100px; display: block; margin-bottom: 10px;">
-                            <label for="artwork-upload-input" class="settings-button" style="font-size: 0.9em; padding: 8px 16px;">画像をアップロード</label>
-                            <input type="file" id="artwork-upload-input" accept="image/*">
-                            <button id="artwork-remove-button" style="font-size: 0.9em; padding: 8px 16px; background-color: #555;">画像を取り消し</button>
-                        </div>
                     </div>
+                    <!-- メモ機能 -->
                     <div class="prop-details">
                         <label>メモ: 
                             <textarea id="prop-memo" placeholder="ここにメモを入力..."></textarea>
                         </label>
                     </div>
+
                     <button id="save-properties-button">設定を保存</button>
                 </div>
             </div>
         </div>
     </main>
 
+    <!-- 画面切り替えバー -->
     <nav id="bottom-nav">
         <div class="nav-item"><button id="nav-player" class="nav-button active">プレイヤー</button></div>
         <div class="nav-item"><button id="nav-list" class="nav-button">一覧</button></div>
