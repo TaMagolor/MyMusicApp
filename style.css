@@ -233,7 +233,7 @@ audio.hidden {
     flex-direction: column;
     justify-content: flex-end;
     align-items: center;
-    gap: 10px;
+    gap: 5px;
     z-index: 20;
     pointer-events: none;
 }
@@ -253,7 +253,7 @@ audio.hidden {
     background-color: #333;
     color: #fff;
     border: 1px solid #555;
-    padding: 8px 16px;
+    padding: 5px 16px;
     border-radius: 20px;
     font-size: 0.9em;
     outline: none;
@@ -261,6 +261,8 @@ audio.hidden {
     text-align: center;
     appearance: none; 
     -webkit-appearance: none;
+    width: 60%;      /* 画面幅の60%まで広げる */
+    max-width: 250px; /* PCなどで広がりすぎないように制限 */
 }
 #endurance-select:hover {
     background-color: #444;
@@ -371,6 +373,10 @@ audio.hidden {
 .prop-details input[type="text"], .prop-details input[type="number"] {
     width: 100%; padding: 8px; box-sizing: border-box; background-color: #333;
     border: 1px solid #555; border-radius: 5px; color: #fff;
+}
+#save-properties-button:active {
+    background-color: #555;
+    transform: translateY(1px);
 }
 .prop-details.readonly span { color: #aaa; font-size: 0.9em; }
 /* 全般設定画面 > 詳細設定画面 > 下画面  (特定の設定の展開時のUI) */

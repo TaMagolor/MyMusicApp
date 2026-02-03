@@ -1,7 +1,7 @@
 // =================================================================
 // アプリのバージョン
 // =================================================================
-const APP_VERSION = 'v.5.2.0'; // Fixed property panel UI bugs
+const APP_VERSION = 'v.5.2.2'; // Fixed property panel UI bugs
 
 // =================================================================
 // HTML要素の取得
@@ -478,6 +478,10 @@ class WebAudioEngine {
             if(time >= this.source.loopStart) {
                 time = this.source.loopStart + ((time - this.source.loopStart) % duration);
             }
+        } else if (currentLoopCount > 0 && loopDuration > 0) {
+            // ★追加: ループ終了後のアウトロ再生中
+            // 「経過した総時間」から「ループで消費した時間」を引くことで、元のバッファ上の位置に戻す
+            time = time - (currentLoopCount * loopDuration);
         }
         return Math.max(0, time);
     }
@@ -554,18 +558,13 @@ propLyricsLangCount.addEventListener('change', handleLyricsSettingChange);
 propLyricsCurrentLang.addEventListener('change', handleLyricsSettingChange);
 propLyricsTimings.addEventListener('input', autoResizeLyricsEditor);
 propLyricsText.addEventListener('input', autoResizeLyricsEditor);
-// 全般設定画面 > 詳細設定画面 > 下画面 > フォルダのみ（カテゴリフォルダ、派生曲所有フォルダ）
-propIsGame.addEventListener('change', () => {
-    // UIの表示/非表示を切り替えるだけにする
-    artworkManagementUI.classList.toggle('hidden', !propIsGame.checked);
-});
+// 全般設定画面 > 詳細設定画面 > 下画面 > フォルダのみ（カテゴリフォルダ、派生曲所有フォルダ） > Gameフォルダとしてマーク
+propIsGame.addEventListener('change', handleGameChange);
 artworkUploadInput.addEventListener('change', handleArtworkUpload);
 artworkRemoveButton.addEventListener('click', handleArtworkRemove);
 // 全般設定画面 > 詳細設定画面 > 下画面 > フォルダのみ（カテゴリフォルダ、派生曲所有フォルダ） > 派生曲所有フォルダ
 if (propIsDerivative) {
-    propIsDerivative.addEventListener('change', () => {
-        derivativeSettingsPanel.classList.toggle('hidden', !propIsDerivative.checked);
-    });
+    propIsDerivative.addEventListener('change', handleDerivativeChange);
 }
 // 全般設定画面 > 詳細設定画面 > 下画面 > メモ機能
 if (propMemo) {
@@ -923,11 +922,45 @@ function handleLoopCompatibleChange() {
     const isChecked = propLoopCompatible.checked;
     loopLockContainer.classList.toggle('hidden', !isChecked);
     loopSettingsPanel.classList.toggle('hidden', !isChecked);
+    if (isChecked && selectedItemPath) {
+        const props = songProperties[selectedItemPath] || {};
+        // 設定があれば反映、なければ初期値
+        propLoopTimeLocked.checked = props.isLoopTimeLocked || false;
+        propLoopStart.value = (props.loopStartTime !== undefined) ? formatTimeWithMillis(props.loopStartTime) : '00:00.000';
+        propLoopEnd.value = (props.loopEndTime !== undefined) ? formatTimeWithMillis(props.loopEndTime) : '01:00.000';
+        
+        // 自動計算表示のリセット
+        propLoopStartAuto.textContent = '--:--.---';
+        propLoopEndAuto.textContent = '--:--.---';
+    }
 }
 
 // 詳細設定画面の歌詞の表示
 function handleLyricsCompatibleChange() {
+    const isChecked = propLyricsCompatible.checked;
     lyricsSettingsPanel.classList.toggle('hidden', !propLyricsCompatible.checked);
+    if (isChecked && selectedItemPath) {
+        const props = songProperties[selectedItemPath] || {};
+        
+        // 対応言語数（初期値: 1）
+        propLyricsLangCount.value = props.lyricsLangCount || 1;
+        // 表示言語（初期値: 0）
+        propLyricsCurrentLang.value = 0; 
+        
+        // 言語名（初期値: 空文字）
+        propLyricsLangName.value = (props.lyricsLangNames && props.lyricsLangNames[0]) ? props.lyricsLangNames[0] : '';
+        
+        // 歌詞データ（初期値: 空文字）
+        const lyricsData = props.lyricsData || [];
+        const timings = lyricsData.map(d => d.time);
+        const lines = lyricsData.map(d => (d.lines && d.lines[0]) ? d.lines[0] : '');
+        
+        propLyricsTimings.value = timings.length > 0 ? timings.join('\n') : '';
+        propLyricsText.value = lines.length > 0 ? lines.join('\n') : '';
+
+        // リサイズ処理を予約
+        setTimeout(autoResizeLyricsEditor, 0);
+    }
 }
 
 // 詳細設定画面の歌詞の表示言語の切り替え
@@ -939,6 +972,33 @@ function handleLyricsSettingChange() {
     props.lyricsLangCount = parseInt(propLyricsLangCount.value, 10);
     songProperties[selectedItemPath] = props;
     showPropertiesPanel(false);
+}
+
+// Gameフォルダとしてマーク
+async function handleGameChange() {
+    const isChecked = propIsGame.checked;
+    artworkManagementUI.classList.toggle('hidden', !isChecked);
+
+    if (isChecked && selectedItemPath) {
+        const props = songProperties[selectedItemPath] || {};
+        if (props.hasArtwork) {
+            await displayArtwork(selectedItemPath, artworkPreview);
+        } else {
+            artworkPreview.src = ''; // 何も表示しない
+        }
+    }
+}
+
+// 派生曲を持つ
+function handleDerivativeChange() {
+    const isChecked = propIsDerivative.checked;
+    derivativeSettingsPanel.classList.toggle('hidden', !isChecked);
+
+    if (isChecked && selectedItemPath) {
+        const props = songProperties[selectedItemPath] || {};
+        // 抽選倍率（初期値: 1）
+        propDerivativeMultiplier.value = (typeof props.multiplier === 'number') ? props.multiplier : 1;
+    }
 }
 
 // アートワークをアップロード
@@ -1153,7 +1213,7 @@ async function playSong(songRecord) {
         loopEnd = props.loopEndTime || 0;
     }
 
-    if (props.isLoopCompatible && props.isLoopTimeLocked) {
+    if (!isIOS && props.isLoopCompatible && props.isLoopTimeLocked) {
         enduranceMenuContainer.classList.remove('hidden');
         
         // ★変更: 「現在の耐久モード」をUIに反映
