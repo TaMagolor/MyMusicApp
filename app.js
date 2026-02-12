@@ -1,7 +1,7 @@
 // =================================================================
 // アプリのバージョン
 // =================================================================
-const APP_VERSION = 'v.5.3.2'; // Fixed property panel UI bugs
+const APP_VERSION = 'v.5.4.0'; // Fixed property panel UI bugs
 
 // =================================================================
 // HTML要素の取得
@@ -555,6 +555,7 @@ window.addEventListener('load', async () => {
         console.log("Mode: PC (Web Audio API)");
         // PCモードはUI更新ループを開始
         setInterval(handleTimeUpdate, interval);
+        enduranceMenuContainer.classList.remove('hidden');
     }
     audioPlayer.classList.add('hidden'); // class="hidden" を強制
     customSeekbarContainer.classList.remove('hidden');
@@ -1705,9 +1706,46 @@ function updateSeekbarVisuals() {
     const max = parseFloat(customSeekbar.max) || 100;
     const ratio = (max > 0) ? (val / max) * 100 : 0;
     
+    // 基本の進捗バー（左から紫、残りはグレー）
+    let backgroundStyle = `linear-gradient(to right, #7e57c2 ${ratio}%, #555 ${ratio}%)`;
+
+    // ★追加: PC版でループ設定が有効な場合、ループ位置に縦線を入れる
+    if (!isIOS && musicEngine && musicEngine.props) {
+        // playSongで設定された情報を参照
+        // (musicEngine.propsは再生中の曲の情報を持っています)
+        const props = songProperties[currentSongPath] || {};
+        const { loopStart, loopEnd, targetLoopCount } = musicEngine.props;
+        
+        // ループ対応かつ、時間固定(targetLoopCount > 0 とみなす)の場合
+        // ※ playSongでの判定条件と合わせるなら isLoopTimeLocked ですが、
+        //    Engine内では targetLoopCount が実態なのでこれを使います。
+        //    ただし、非再生時にも線を出したい場合は currentSongPath のプロパティを見る必要がありますが、
+        //    今回は「再生中」の表示更新として実装します。
+        
+        if (targetLoopCount > 0 && max > 0 && props.isLoopCompatible && props.isLoopTimeLocked) {
+            // 位置(%)を計算
+            const startRatio = (loopStart / max) * 100;
+            const endRatio = (loopEnd / max) * 100;
+
+            // 線の太さ（％換算だとズレるので、px指定したいがlinear-gradientだと難しい。
+            // ここでは簡易的に 0.5% 程度の幅を持たせます）
+            const lineWidth = 0.3; 
+
+            // ループ開始線 (黄色)
+            const startLine = `linear-gradient(to right, transparent ${startRatio}%, #FFD700 ${startRatio}%, #FFD700 calc(${startRatio}% + 2px), transparent calc(${startRatio}% + 2px))`;
+            
+            // ループ終了線 (赤っぽい黄色 または 同じ黄色)
+            const endLine = `linear-gradient(to right, transparent ${endRatio}%, #FFD700 ${endRatio}%, #FFD700 calc(${endRatio}% + 2px), transparent calc(${endRatio}% + 2px))`;
+
+            // 背景画像を重ねる（先に書いたほうが手前に表示される）
+            // 順序: [開始線], [終了線], [進捗バー]
+            backgroundStyle = `${startLine}, ${endLine}, ${backgroundStyle}`;
+        }
+    }
+
     // linear-gradientで「左からratio%まで紫、そこから右はグレー」にする
     // 線の太さは background-size の第2引数(4px)で指定
-    customSeekbar.style.background = `linear-gradient(to right, #7e57c2 ${ratio}%, #555 ${ratio}%)`;
+    customSeekbar.style.background = backgroundStyle;
     customSeekbar.style.backgroundSize = `100% 6px`;
     customSeekbar.style.backgroundRepeat = `no-repeat`;
     customSeekbar.style.backgroundPosition = `center`;
