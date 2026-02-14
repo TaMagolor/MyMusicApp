@@ -1,7 +1,7 @@
 // =================================================================
 // アプリのバージョン
 // =================================================================
-const APP_VERSION = 'v.5.4.0'; // Fixed property panel UI bugs
+const APP_VERSION = 'v.5.5.0'; // Fixed property panel UI bugs
 
 // =================================================================
 // HTML要素の取得
@@ -240,6 +240,11 @@ class TimeState {
 class Html5AudioEngine {
     constructor() {
         this.element = document.getElementById('audioPlayer');
+
+        // ★追加: PWAでのバックグラウンド再生安定化のため属性を追加
+        this.element.setAttribute('playsinline', 'true');
+        this.element.setAttribute('webkit-playsinline', 'true');
+
         this.loopStart = 0;
         this.loopEnd = 0;
         this.isLooping = false;
@@ -262,6 +267,12 @@ class Html5AudioEngine {
 
             this.element.play().then(() => {
                 if (this.isLooping) requestAnimationFrame(this.checkLoop);
+
+                // ★追加: 再生成功時にMediaSessionの状態を確実に更新
+                if ('mediaSession' in navigator) {
+                    navigator.mediaSession.playbackState = 'playing';
+                }
+
                 resolve();
             }).catch(e => reject(e));
         });
@@ -284,13 +295,21 @@ class Html5AudioEngine {
     }
 
     pause() { 
-        this.element.pause(); 
+        this.element.pause();
+        // ★追加: 一時停止状態を通知
+        if ('mediaSession' in navigator) {
+            navigator.mediaSession.playbackState = 'paused';
+        }
     }
 
     // ★追加: 再開処理
     resume() { 
         if (this.element.paused && this.element.src) {
             this.element.play();
+            // ★追加: 再生状態を通知
+            if ('mediaSession' in navigator) {
+                navigator.mediaSession.playbackState = 'playing';
+            }
         }
     }
     
@@ -684,7 +703,12 @@ function handleTimeUpdate() {
 function handleSongEnd(event) {
     if (event && event.target !== audioPlayer) return;
     if (lyricsUpdateInterval) clearInterval(lyricsUpdateInterval);
-    setTimeout(playNextSong, 800);
+
+    if (isIOS) {
+        playNextSong();
+    } else {
+        setTimeout(playNextSong, 800);
+    }
 }
 
 // シークバーをタップ
@@ -903,7 +927,8 @@ async function handleArtworkFolderRecovery(event) {
             await displayArtwork(rootPath);
         }
 
-        alert(`${restoredCount} 件のアートワークを復元しました。`);
+        //アラートは非表示
+        //alert(`${restoredCount} 件のアートワークを復元しました。`);
 
     } catch (error) {
         console.error('Artwork recovery failed:', error);
@@ -1334,8 +1359,17 @@ async function playSong(songRecord) {
 			title: songDisplayName, artist: gameName, album: '多機能ミュージックリスト',
 			artwork: [ { src: playerArtwork.src, sizes: '512x512', type: 'image/png' } ]
 		});
-		navigator.mediaSession.setActionHandler('play', () => audioPlayer.play());
-		navigator.mediaSession.setActionHandler('pause', () => audioPlayer.pause());
+        navigator.mediaSession.playbackState = 'playing';
+		navigator.mediaSession.setActionHandler('play', () => {
+            // iOS PWAではplay()のPromiseを返さないと警告が出ることがあるため修正
+            const promise = audioPlayer.play();
+            if (promise !== undefined) promise.catch(e => console.error(e));
+            navigator.mediaSession.playbackState = 'playing'; // 状態更新
+        });
+		navigator.mediaSession.setActionHandler('pause', () => {
+            audioPlayer.pause();
+            navigator.mediaSession.playbackState = 'paused'; // 状態更新
+        });
 		navigator.mediaSession.setActionHandler('nexttrack', () => playNextSong());
 		navigator.mediaSession.setActionHandler('previoustrack', () => rewindFiveSeconds());
 		try {
